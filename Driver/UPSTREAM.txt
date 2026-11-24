@@ -1,0 +1,4 @@
+Microsoft Windows-driver-samples
+https://github.com/microsoft/Windows-driver-samples
+Commit d49bb7d72f3651952b2b6e4ad28d14fe2247eb69
+Modified SysVAD prototype. Not built, signed, or installed.

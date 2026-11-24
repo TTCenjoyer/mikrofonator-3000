@@ -1,0 +1,137 @@
+using System.Numerics;
+
+namespace FiltrMikrofonu.Audio;
+
+internal sealed class ReferenceFilter
+{
+    // Input EQ inferred from the paired 210-second sweeps in untitled.wav.
+    // Each value is the gain ahead of the exponential saturator.
+    private static readonly (double Hz, double Gain)[] Curve =
+    [
+        (0, .175), (54, .175), (60, .199), (63, .303), (66, .589), (69, 1.155),
+        (72, 2.068), (75, 3.210), (78, 4.246), (81, 5.093), (84, 5.788),
+        (87, 6.330), (90, 6.587), (100, 6.711), (150, 6.922), (250, 7.198),
+        (400, 7.462), (600, 7.699), (800, 7.870), (1000, 8.005), (1250, 8.140),
+        (1500, 8.253), (1750, 8.348), (1800, 9.325), (1850, 11.286), (1900, 13.592),
+        (1950, 16.289), (1985, 18.124), (2020, 16.431), (2070, 14.010), (2120, 11.992),
+        (2180, 9.998), (2260, 7.904), (2300, 8.052), (2340, 9.642), (2400, 12.560),
+        (2460, 16.250), (2520, 20.895), (2580, 26.712), (2640, 33.973), (2700, 42.961),
+        (2760, 54.106), (2790, 59.076), (2820, 49.628), (2860, 38.617), (2900, 30.150),
+        (2950, 22.231), (3000, 16.482), (3040, 13.021), (3080, 10.317), (3120, 8.197),
+        (3160, 6.734), (3200, 6.192), (3250, 5.592), (3300, 5.058), (3400, 4.156),
+        (3500, 3.434), (3700, 2.384), (3900, 1.687), (4100, 1.215), (4300, .889),
+        (4500, .660), (4700, .496), (4900, .377), (5100, .290), (5300, .225),
+        (5450, .188), (5510, .175)
+    ];
+
+    private readonly float[] taps;
+    private readonly float[] history;
+    private readonly int delay;
+    private readonly float highPassPole;
+    private readonly float highPassGain;
+    private int write;
+    private float previousShaped;
+    private float previousOutput;
+
+    public ReferenceFilter(int sampleRate)
+    {
+        delay = (int)Math.Round(sampleRate * .025);
+        taps = BuildTaps(sampleRate, delay);
+        history = new float[taps.Length * 2];
+        double corner = Math.Tan(Math.PI * 1000 / sampleRate);
+        highPassPole = (float)((1 - corner) / (1 + corner));
+        highPassGain = (float)(1 / (1 + corner));
+    }
+
+    public float Push(float sample)
+    {
+        history[write] = sample;
+        history[write + taps.Length] = sample;
+        write = (write + 1) % taps.Length;
+        return history[write + delay];
+    }
+
+    public float ReadEffect()
+    {
+        int index = 0;
+        Vector<float> sum = Vector<float>.Zero;
+        for (; index <= taps.Length - Vector<float>.Count; index += Vector<float>.Count)
+            sum += new Vector<float>(taps, index) * new Vector<float>(history, write + index);
+
+        float equalized = Vector.Sum(sum);
+        for (; index < taps.Length; index++)
+            equalized += taps[index] * history[write + index];
+
+        float shaped = MathF.CopySign(.4655f * (1 - MathF.Exp(-MathF.Abs(equalized))), equalized);
+        float result = highPassGain * (shaped - previousShaped) + highPassPole * previousOutput;
+        previousShaped = shaped;
+        previousOutput = result;
+        return result;
+    }
+
+    private static float[] BuildTaps(int sampleRate, int delay)
+    {
+        double nyquist = sampleRate / 2.0;
+        var points = new List<(double Hz, double Gain)> { Curve[0] };
+        for (int i = 1; i < Curve.Length; i++)
+        {
+            var next = Curve[i];
+            var last = points[^1];
+            if (next.Hz >= nyquist)
+            {
+                double gain = last.Gain + (next.Gain - last.Gain) * (nyquist - last.Hz) / (next.Hz - last.Hz);
+                points.Add((nyquist, gain));
+                break;
+            }
+            points.Add(next);
+        }
+        if (points[^1].Hz < nyquist)
+            points.Add((nyquist, points[^1].Gain));
+
+        var response = new float[2 * delay + 1];
+        for (int point = 1; point < points.Count; point++)
+        {
+            var (leftHz, leftGain) = points[point - 1];
+            var (rightHz, rightGain) = points[point];
+            response[delay] += (float)((leftGain + rightGain) * (rightHz - leftHz) / sampleRate);
+        }
+
+        // Integrate the piecewise-linear curve against the cosine basis to get a
+        // symmetric FIR. A Kaiser window balances the narrow bass transition and ringing.
+        const double beta = 3;
+        double centerWeight = BesselI0(beta);
+        for (int tap = 1; tap <= delay; tap++)
+        {
+            double angle = 2 * Math.PI * tap / sampleRate;
+            double lastCosine = 1;
+            double weight = 0;
+            for (int point = 1; point < points.Count; point++)
+            {
+                var (leftHz, leftGain) = points[point - 1];
+                var (rightHz, rightGain) = points[point];
+                double cosine = Math.Cos(angle * rightHz);
+                weight += (rightGain - leftGain) / (rightHz - leftHz) * (cosine - lastCosine);
+                lastCosine = cosine;
+            }
+            double offset = (double)tap / delay;
+            double window = BesselI0(beta * Math.Sqrt(1 - offset * offset)) / centerWeight;
+            float coefficient = (float)(2 * window * weight / (sampleRate * angle * angle));
+            response[delay - tap] = coefficient;
+            response[delay + tap] = coefficient;
+        }
+        return response;
+    }
+
+    private static double BesselI0(double value)
+    {
+        double square = value * value / 4;
+        double term = 1;
+        double sum = 1;
+        for (int i = 1; i <= 9; i++)
+        {
+            term *= square / (i * i);
+            sum += term;
+        }
+        return sum;
+    }
+}

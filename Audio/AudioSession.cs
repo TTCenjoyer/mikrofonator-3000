@@ -1,0 +1,174 @@
+using NAudio.CoreAudioApi;
+using NAudio.Wave;
+
+namespace FiltrMikrofonu.Audio;
+
+internal sealed class AudioSession : IDisposable
+{
+    private readonly float[] scratch = new float[1024];
+    private readonly float[] rightScratch = new float[1024];
+    private MMDevice? input;
+    private WasapiRecorder? recorder;
+    private RenderRoute? output;
+    private RenderRoute? monitor;
+    private SampleFormat? captureFormat;
+    private AudioProcessor? processor;
+    private FilterSettings settings;
+    private string? captureError;
+    private float inputPeak, outputPeak;
+    private bool disposed;
+
+    private AudioSession(FilterSettings settings) => this.settings = settings;
+
+    public int SampleRate { get; private set; }
+    public string? Failure => Volatile.Read(ref captureError) ?? output?.Failure;
+    public string? MonitorFailure => Volatile.Read(ref monitor)?.Failure;
+
+    public static AudioSession Start(string microphoneId, string outputId, FilterSettings settings)
+    {
+        var session = new AudioSession(settings);
+        try
+        {
+            using var devices = new MMDeviceEnumerator();
+            session.input = devices.GetDevice(microphoneId);
+            var builder = new WasapiRecorderBuilder().WithDevice(session.input)
+                .WithBufferLength(24).WithLowLatency().WithMmcssThreadPriority("Pro Audio");
+            WaveFormat mix;
+            using (var client = session.input.CreateAudioClient())
+                mix = client.MixFormat;
+            if (mix.SampleRate > 48000)
+                builder.WithFormat(WaveFormat.CreateIeeeFloatWaveFormat(48000, mix.Channels));
+
+            session.recorder = builder.Build();
+            session.SampleRate = session.recorder.WaveFormat.SampleRate;
+            session.captureFormat = new SampleFormat(session.recorder.WaveFormat);
+            session.processor = new AudioProcessor(session.SampleRate, settings);
+            session.output = RenderRoute.Start(outputId, session.SampleRate);
+            session.recorder.DataAvailable += session.OnCapture;
+            session.recorder.RecordingStopped += session.OnCaptureStopped;
+            session.recorder.StartRecording();
+            return session;
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
+    }
+
+    public void SetFilter(FilterSettings next) => Volatile.Write(ref settings, next);
+
+    public void SetMonitor(string? deviceId)
+    {
+        RenderRoute? next = deviceId is null ? null : RenderRoute.Start(deviceId, SampleRate);
+        Interlocked.Exchange(ref monitor, next)?.Dispose();
+    }
+
+    public (float In, float Out) TakePeaks() =>
+        (Interlocked.Exchange(ref inputPeak, 0), Interlocked.Exchange(ref outputPeak, 0));
+
+    private void OnCapture(ReadOnlySpan<byte> data, AudioClientBufferFlags flags, long devicePosition, long qpcPosition)
+    {
+        int frameBytes = captureFormat!.FrameBytes;
+        int count = data.Length / frameBytes;
+        var parameters = Volatile.Read(ref settings);
+        for (int offset = 0; offset < count; offset += scratch.Length)
+        {
+            var block = scratch.AsSpan(0, Math.Min(scratch.Length, count - offset));
+            for (int frame = 0; frame < block.Length; frame++)
+                block[frame] = captureFormat.ReadMono(data[((offset + frame) * frameBytes)..]);
+
+            var right = rightScratch.AsSpan(0, block.Length);
+            processor!.ProcessStereo(block, right, parameters, out float before, out float after);
+            SetPeak(ref inputPeak, before);
+            SetPeak(ref outputPeak, after);
+            output!.Buffer.Write(block, right);
+            Volatile.Read(ref monitor)?.Buffer.Write(block, right);
+        }
+    }
+
+    private void OnCaptureStopped(object? sender, StoppedEventArgs args) => Volatile.Write(ref captureError,
+        args.Exception?.Message ?? "Urządzenie wejściowe przestało przesyłać dźwięk.");
+
+    private static void SetPeak(ref float target, float peak)
+    {
+        float previous = Volatile.Read(ref target);
+        while (peak > previous)
+        {
+            float observed = Interlocked.CompareExchange(ref target, peak, previous);
+            if (observed == previous)
+                return;
+            previous = observed;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (disposed)
+            return;
+        disposed = true;
+        if (recorder is { } capture)
+        {
+            capture.DataAvailable -= OnCapture;
+            capture.RecordingStopped -= OnCaptureStopped;
+            capture.Dispose();
+        }
+        Interlocked.Exchange(ref monitor, null)?.Dispose();
+        output?.Dispose();
+        input?.Dispose();
+    }
+}
+
+internal sealed class RenderRoute : IDisposable
+{
+    private readonly MMDevice device;
+    private readonly WasapiPlayer player;
+    private string? failure;
+
+    private RenderRoute(MMDevice device, WasapiPlayer player, RenderBuffer buffer)
+    {
+        this.device = device;
+        this.player = player;
+        Buffer = buffer;
+    }
+
+    public RenderBuffer Buffer { get; }
+    public string? Failure => Volatile.Read(ref failure);
+
+    public static RenderRoute Start(string id, int sampleRate)
+    {
+        using var devices = new MMDeviceEnumerator();
+        var endpoint = devices.GetDevice(id);
+        WasapiPlayer? player = null;
+        try
+        {
+            WaveFormat mix;
+            using (var client = endpoint.CreateAudioClient())
+                mix = client.MixFormat;
+            var buffer = new RenderBuffer(sampleRate, mix);
+            player = new WasapiPlayerBuilder().WithDevice(endpoint).WithLatency(32)
+                .WithLowLatency().WithMmcssThreadPriority("Pro Audio").Build();
+            var route = new RenderRoute(endpoint, player, buffer);
+            player.PlaybackStopped += route.OnPlaybackStopped;
+            player.Init(buffer);
+            player.Play();
+            return route;
+        }
+        catch
+        {
+            player?.Dispose();
+            endpoint.Dispose();
+            throw;
+        }
+    }
+
+    private void OnPlaybackStopped(object? sender, StoppedEventArgs args) => Volatile.Write(ref failure,
+        args.Exception?.Message ?? "Urządzenie wyjściowe przestało odtwarzać dźwięk.");
+
+    public void Dispose()
+    {
+        player.PlaybackStopped -= OnPlaybackStopped;
+        player.Dispose();
+        device.Dispose();
+    }
+}

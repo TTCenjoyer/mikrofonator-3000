@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>Microphone.ico</ApplicationIcon>
+    <Version>1.8.0</Version>
+    <Product>Filtr Mikrofonu</Product>
+    <Description>Filtry gĹ‚osowe na ĹĽywo dla Windows</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
+    <Resource Include="Microphone.ico" />
+    <EmbeddedResource Include="Audio/BeforeVoiceImpulse.bin" LogicalName="FiltrMikrofonu.BeforeVoiceImpulse" />
+  </ItemGroup>
+</Project>
