@@ -1,0 +1,51 @@
+# Filtr Mikrofonu
+
+Aplikacja dla Windows x64 przetwarza mikrofon na żywo. Wybierz urządzenie wejściowe i wyjście, a potem kliknij **Uruchom mikrofon**. Filtr, jego intensywność i oba wzmocnienia możesz zmieniać w trakcie rozmowy. Odsłuch uruchomisz osobno na słuchawkach.
+
+## Discord i inne komunikatory
+
+1. W aplikacji wybierz fizyczny mikrofon oraz **CABLE Input (VB-Audio Virtual Cable)** jako wyjście.
+2. W Discordzie otwórz **Ustawienia użytkownika → Głos i wideo**. Jako urządzenie wejściowe wybierz **CABLE Output (VB-Audio Virtual Cable)**. Jako wyjście zostaw swoje słuchawki lub głośniki.
+3. Kliknij **Uruchom mikrofon** i użyj testu mikrofonu w Discordzie. Jeśli Discord tłumi mocno przetworzone efekty, wyłącz jego redukcję szumów. [Instrukcja testu mikrofonu](https://support.discord.com/hc/en-us/articles/360020641332-Mic-Testing) · [VB-CABLE](https://vb-audio.com/Cable/)
+
+Przetwarzanie działa lokalnie. Program zapamiętuje wybór urządzeń i ustawienia filtrów. Aplikacja otwiera się z filtrem **Czysty**. Preverb, Reverb i Echo włączasz w panelu efektów, a mikrofon uruchamiasz przyciskiem. Odsłuch również włączasz ręcznie.
+
+## Preverb, reverb i echo na żywo
+
+Włącz odsłuch w słuchawkach, żeby stroić efekty podczas mówienia. Wszystkie suwaki działają także w trakcie przesyłania dźwięku do komunikatora.
+
+- **Preverb** włącza pogłos przed głosem. Regulujesz czas narastania od 0,4 do 2,4 s oraz głośność pogłosu. Wypowiedź jest opóźniona o ustawiony czas.
+- **Reverb** ma dziewięć suwaków ze zrzutu Audacity oraz Wet Only. Room Size określa rozmiar pomieszczenia, Pre-delay opóźnia pogłos, Reverberance wydłuża wybrzmiewanie, a Damping tłumi wysokie częstotliwości odbić. Tone Low i Tone High zmieniają barwę. Wet Gain oraz Dry Gain sterują poziomami pogłosu i głosu. Stereo Width reguluje szerokość pogłosu w odsłuchu i na wyjściu stereo. Wet Only pozostawia sam pogłos. Silnik pogłosu aplikacji daje własne brzmienie przy tych samych nazwach parametrów.
+- **Echo** dodaje echo wypowiedzi. Ustawiasz głośność oraz odstęp między powtórzeniami.
+
+Efekty można łączyć. Program zapamiętuje każde ustawienie.
+
+Preverb ma osobny zestaw tych samych dziewięciu parametrów i Wet Only. Tworzy odwrócony, narastający pogłos pomieszczenia, ograniczony do wybranego czasu przed głosem. Jego Pre-delay ustawia przerwę między pogłosem a głosem. Parametry są przygotowywane w tle i płynnie wprowadzane do działającego strumienia. Preverb oraz Reverb zapamiętują własne ustawienia.
+
+Echo to oddzielne powtórzenia wypowiedzi. Reverb daje gęste odbicia pomieszczenia, które zlewają się w pogłos.
+
+## Presety z nagrań
+
+- **Z próbki** odtwarza w przybliżeniu efekt zmierzony na dwóch przebiegach testowych z `untitled.wav`. Łączy korekcję pasma z nasyceniem i filtrem górnoprzepustowym 1 kHz.
+- **Preverb** odtwarza narastający pogłos na podstawie pierwszej części `12.wav`. Domyślny czas to 1,3 s. Do opóźnienia dochodzi zwykła latencja urządzeń audio.
+
+Do działania wystarcza EXE.
+
+## Kompilacja
+
+Użyj .NET 10 SDK na Windows. Polecenie w katalogu projektu tworzy przenośny EXE dla Windows x64.
+
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+```
+
+Obsługa urządzeń audio korzysta z [NAudio](https://github.com/naudio/NAudio). Wirtualne wejście zapewnia zainstalowany sterownik VB-CABLE.
+
+
+## Bramka i redukcja szumów
+
+Bramka i redukcja szumów działają przed filtrami głosu, Preverb, Reverb i Echo. Próg bramki ustaw powyżej poziomu szumu w ciszy. Podtrzymanie i wygaszanie pomagają zachować końcówki słów. Redukcja szumów ma osobny poziom szumu oraz siłę działania. Wszystkie wartości zmieniasz podczas rozmowy.
+
+## Własny wirtualny mikrofon
+
+W katalogu Driver znajduje się prototyp źródeł sterownika na bazie Microsoft SysVAD. Wersja 1.8 wykrywa jego docelowe urządzenia Filtr Mikrofonu Input i Filtr Mikrofonu Microphone. Sterownik wymaga kompilacji z WDK, testów oraz podpisu akceptowanego przez Windows przed instalacją. Ten pakiet EXE obsługuje obecne wyjścia audio, w tym VB-CABLE, do czasu ukończenia sterownika.
