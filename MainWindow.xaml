@@ -482,7 +482,7 @@
         <Grid Visibility="Collapsed" x:Name="FilterPanelStorage">
             <StackPanel x:Name="EqPanel">
                 <TextBlock Text="Przeciągnij punkty · odcinki liniowe" Style="{StaticResource Label}" FontSize="10" />
-                <ui:EqualizerEditor x:Name="EqEditor" Height="160" Margin="0,5,0,0" />
+                <ui:EqualizerEditor x:Name="EqEditor" Height="270" Margin="0,5,0,0" />
                 <Button Content="Wyzeruj EQ" Click="ResetEq_Click" HorizontalAlignment="Left" Padding="9,3" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" />
             </StackPanel>
             <StackPanel x:Name="HighPassPanel">
@@ -495,25 +495,44 @@
                     <ComboBoxItem Content="12 dB / oktawę" />
                     <ComboBoxItem Content="24 dB / oktawę" />
                     <ComboBoxItem Content="48 dB / oktawę" />
+                    <ComboBoxItem Content="6 dB / oktawę" />
                 </ComboBox>
             </StackPanel>
             <StackPanel x:Name="DistortionPanel">
-                <Grid>
-                    <TextBlock Text="Przesterowanie" Style="{StaticResource Label}" />
-                    <TextBlock x:Name="DriveValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
-                </Grid>
-                <Slider x:Name="DriveSlider" Minimum="0" Maximum="30" Value="12" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Przesterowanie" />
+                <ComboBox x:Name="DistortionTypeBox" Style="{StaticResource DevicePicker}" SelectedIndex="0" SelectionChanged="Effect_Changed" Margin="0,0,0,15" AutomationProperties.Name="Typ przesteru">
+                    <ComboBoxItem Content="Standardowy — tanh / obcinanie" />
+                    <ComboBoxItem Content="Medium Overdrive" />
+                </ComboBox>
+                <StackPanel x:Name="StandardDistortionPanel">
+                    <Grid>
+                        <TextBlock Text="Przesterowanie" Style="{StaticResource Label}" />
+                        <TextBlock x:Name="DriveValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                    </Grid>
+                    <Slider x:Name="DriveSlider" Minimum="0" Maximum="30" Value="12" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Przesterowanie" />
+                    <Grid>
+                        <TextBlock Text="Poziom przesteru" Style="{StaticResource Label}" />
+                        <TextBlock x:Name="DistortionOutputValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                    </Grid>
+                    <Slider x:Name="DistortionOutputSlider" Minimum="-24" Maximum="0" Value="-6" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Poziom przesteru" />
+                    <CheckBox x:Name="HardClippingToggle" Content="Twarde obcinanie" Foreground="{StaticResource SecondaryBrush}" Checked="Effect_Changed" Unchecked="Effect_Changed" />
+                </StackPanel>
+                <StackPanel x:Name="MediumOverdrivePanel">
+                    <Grid>
+                        <TextBlock Text="Distortion amount (0–100)" Style="{StaticResource Label}" />
+                        <TextBlock x:Name="OverdriveAmountValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" />
+                    </Grid>
+                    <Slider x:Name="OverdriveAmountSlider" Minimum="0" Maximum="100" Value="49" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Distortion amount" />
+                    <Grid>
+                        <TextBlock Text="Output level (0–100)" Style="{StaticResource Label}" />
+                        <TextBlock x:Name="OverdriveOutputValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" />
+                    </Grid>
+                    <Slider x:Name="OverdriveOutputSlider" Minimum="0" Maximum="100" Value="50" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Output level" />
+                </StackPanel>
                 <Grid>
                     <TextBlock Text="Domieszka" Style="{StaticResource Label}" />
                     <TextBlock x:Name="DistortionMixValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
                 </Grid>
                 <Slider x:Name="DistortionMixSlider" Minimum="0" Maximum="100" Value="50" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Domieszka" />
-                <Grid>
-                    <TextBlock Text="Poziom przesteru" Style="{StaticResource Label}" />
-                    <TextBlock x:Name="DistortionOutputValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
-                </Grid>
-                <Slider x:Name="DistortionOutputSlider" Minimum="-24" Maximum="0" Value="-6" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Poziom przesteru" />
-                <CheckBox x:Name="HardClippingToggle" Content="Twarde obcinanie" Foreground="{StaticResource SecondaryBrush}" Checked="Effect_Changed" Unchecked="Effect_Changed" />
             </StackPanel>
             <StackPanel x:Name="NormalizerPanel">
                 <Grid>

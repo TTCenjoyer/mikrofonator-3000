@@ -13,7 +13,7 @@ public sealed class EqualizerEditor : FrameworkElement
     internal EqualizerSettings Settings
     {
         get => settings;
-        set { settings = value; InvalidateVisual(); }
+        set { settings = value; selected = Math.Min(selected, value.Points.Length - 1); InvalidateVisual(); }
     }
     public event EventHandler? Changed;
     public EqualizerEditor()
@@ -28,8 +28,8 @@ public sealed class EqualizerEditor : FrameworkElement
     private double Top => 22;
     private double Bottom => Math.Max(Top + 1, ActualHeight - 24);
     private Point PointAt(int index, float value) => new(
-        Left + Math.Log(EqualizerSettings.Frequencies[index] / 63) / Math.Log(16000.0 / 63) * (Right - Left),
-        Top + (18 - value) / 36 * (Bottom - Top));
+        Left + Math.Log(settings.Points[index].Hertz / 20) / Math.Log(20000.0 / 20) * (Right - Left),
+        Top + (30 - value) / 60 * (Bottom - Top));
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
@@ -40,30 +40,31 @@ public sealed class EqualizerEditor : FrameworkElement
         void Label(string text, double x, double y, Brush brush, double size = 9) => dc.DrawText(
             new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 new Typeface("Segoe UI"), size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip), new Point(x,y));
-        foreach (int db in new[] { -18, 0, 18 })
+        foreach (int db in new[] { -30, -15, 0, 15, 30 })
         {
             double y = PointAt(0, db).Y;
             dc.DrawLine(line, new Point(Left,y), new Point(Right,y));
-            Label(db > 0 ? "+18" : db.ToString(), 2, y-6, muted);
+            Label(db > 0 ? "+" + db : db.ToString(), 2, y-6, muted);
         }
-        float[] gains = settings.Gains;
+        var points = settings.Points;
+        float[] gains = points.Select(p => p.Gain).ToArray();
         for (int i = 0; i < gains.Length; i++)
         {
             Point point = PointAt(i, gains[i]);
             dc.DrawLine(line, new Point(point.X,Top), new Point(point.X,Bottom));
-            string hz = EqualizerSettings.Frequencies[i] >= 1000 ? $"{EqualizerSettings.Frequencies[i]/1000:0}k" : $"{EqualizerSettings.Frequencies[i]:0}";
-            Label(hz, point.X-9, Bottom+6, muted);
+            string hz = points[i].Hertz >= 1000 ? $"{points[i].Hertz/1000:0.#}k" : $"{points[i].Hertz:0}";
+            if (i == 0 || point.X - PointAt(i-1,0).X > 28) Label(hz, point.X-9, Bottom+6, muted);
             if (i > 0) dc.DrawLine(new Pen(accent,2), PointAt(i-1,gains[i-1]),point);
         }
         for (int i = 0; i < gains.Length; i++)
             dc.DrawEllipse(i == selected ? Brushes.White : accent, new Pen(accent,1), PointAt(i,gains[i]), 4,4);
-        Label($"{EqualizerSettings.Frequencies[selected]:0} Hz   {gains[selected]:+0.0;-0.0;0.0} dB", Left, 3, accent, 10);
+        Label($"{points[selected].Hertz:0} Hz   {gains[selected]:+0.0;-0.0;0.0} dB", Left, 3, accent, 10);
     }
     private void SetGain(float value)
     {
-        var g = settings.Gains;
-        g[selected] = Math.Clamp(MathF.Round(value * 2) / 2, -18, 18);
-        Settings = new(g[0],g[1],g[2],g[3],g[4],g[5],g[6],g[7]);
+        var points = settings.Points.ToArray();
+        points[selected] = points[selected] with { Gain = Math.Clamp(MathF.Round(value * 2) / 2, -30, 30) };
+        Settings = settings with { Curve = points };
         Changed?.Invoke(this, EventArgs.Empty);
     }
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -71,16 +72,16 @@ public sealed class EqualizerEditor : FrameworkElement
         base.OnMouseLeftButtonDown(e);
         Focus();
         Point position = e.GetPosition(this);
-        selected = Enumerable.Range(0,8).MinBy(i => Math.Abs(PointAt(i,0).X-position.X));
+        selected = Enumerable.Range(0,settings.Points.Length).MinBy(i => Math.Abs(PointAt(i,0).X-position.X));
         CaptureMouse();
-        SetGain(e.ClickCount == 2 ? 0 : (float)(18 - 36*(position.Y-Top)/(Bottom-Top)));
+        SetGain(e.ClickCount == 2 ? 0 : (float)(30 - 60*(position.Y-Top)/(Bottom-Top)));
         e.Handled = true;
     }
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
         if (IsMouseCaptured && e.LeftButton == MouseButtonState.Pressed)
-            SetGain((float)(18 - 36*(e.GetPosition(this).Y-Top)/(Bottom-Top)));
+            SetGain((float)(30 - 60*(e.GetPosition(this).Y-Top)/(Bottom-Top)));
     }
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e) { ReleaseMouseCapture(); base.OnMouseLeftButtonUp(e); }
     protected override void OnKeyDown(KeyEventArgs e)
@@ -88,9 +89,9 @@ public sealed class EqualizerEditor : FrameworkElement
         switch(e.Key)
         {
             case Key.Left: selected = Math.Max(0,selected-1); break;
-            case Key.Right: selected = Math.Min(7,selected+1); break;
-            case Key.Up: SetGain(settings.Gains[selected]+.5f); break;
-            case Key.Down: SetGain(settings.Gains[selected]-.5f); break;
+            case Key.Right: selected = Math.Min(settings.Points.Length-1,selected+1); break;
+            case Key.Up: SetGain(settings.Points[selected].Gain+.5f); break;
+            case Key.Down: SetGain(settings.Points[selected].Gain-.5f); break;
             case Key.Home: SetGain(0); break;
             default: base.OnKeyDown(e); return;
         }

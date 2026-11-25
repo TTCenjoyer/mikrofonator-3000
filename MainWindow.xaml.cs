@@ -91,10 +91,13 @@ public partial class MainWindow : Window
         EqEditor.Changed += (_, _) => { if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs()); };
         HighPassToggle.IsChecked = manual.HighPassEnabled;
         HighPassSlider.Value = manual.HighPassHz;
-        SlopeBox.SelectedIndex = manual.HighPassSlope switch { 24 => 1, 48 => 2, _ => 0 };
+        SlopeBox.SelectedIndex = manual.HighPassSlope switch { 24 => 1, 48 => 2, 6 => 3, _ => 0 };
         DistortionToggle.IsChecked = manual.DistortionEnabled;
         HardClippingToggle.IsChecked = manual.HardClipping;
         DriveSlider.Value = manual.DriveDb;
+        DistortionTypeBox.SelectedIndex = manual.MediumOverdrive ? 1 : 0;
+        OverdriveAmountSlider.Value = manual.OverdriveAmount;
+        OverdriveOutputSlider.Value = manual.OverdriveOutput;
         DistortionMixSlider.Value = manual.DistortionMix;
         DistortionOutputSlider.Value = manual.DistortionOutputDb;
         NormalizerToggle.IsChecked = manual.NormalizerEnabled;
@@ -314,6 +317,11 @@ public partial class MainWindow : Window
         RadioColorValue.Text = $"{RadioColorSlider.Value:0}%";
         CompressionValue.Text = $"{CompressionSlider.Value:0}%";
         VoiceShiftValue.Text = $"{VoiceShiftSlider.Value:0}%";
+        bool medium = DistortionTypeBox.SelectedIndex == 1;
+        StandardDistortionPanel.Visibility = medium ? Visibility.Collapsed : Visibility.Visible;
+        MediumOverdrivePanel.Visibility = medium ? Visibility.Visible : Visibility.Collapsed;
+        OverdriveAmountValue.Text = $"{OverdriveAmountSlider.Value:0}";
+        OverdriveOutputValue.Text = $"{OverdriveOutputSlider.Value:0}";
         session?.SetFilter(GetFilterSettings());
     }
 
@@ -347,13 +355,14 @@ public partial class MainWindow : Window
     }
 
     private ManualFilterSettings GetManualSettings() => new(EqToggle.IsChecked == true, EqEditor.Settings,
-        HighPassToggle.IsChecked == true, (float)HighPassSlider.Value, SlopeBox.SelectedIndex switch { 1 => 24, 2 => 48, _ => 12 },
+        HighPassToggle.IsChecked == true, (float)HighPassSlider.Value, SlopeBox.SelectedIndex switch { 1 => 24, 2 => 48, 3 => 6, _ => 12 },
         DistortionToggle.IsChecked == true, HardClippingToggle.IsChecked == true, (float)DriveSlider.Value,
         (float)DistortionMixSlider.Value, (float)DistortionOutputSlider.Value, NormalizerToggle.IsChecked == true,
         (float)NormalizeSlider.Value, (float)MaxGainSlider.Value,
         RadioColorToggle.IsChecked == true, (float)RadioColorSlider.Value,
         CompressionToggle.IsChecked == true, (float)CompressionSlider.Value,
-        VoiceShiftToggle.IsChecked == true, (float)VoiceShiftSlider.Value);
+        VoiceShiftToggle.IsChecked == true, (float)VoiceShiftSlider.Value,
+        DistortionTypeBox.SelectedIndex == 1, (float)OverdriveAmountSlider.Value, (float)OverdriveOutputSlider.Value);
 
     private void ApplyPreset(VoiceFilter preset)
     {
@@ -364,7 +373,7 @@ public partial class MainWindow : Window
             HighPassToggle.IsChecked = preset is not VoiceFilter.Clean;
             DistortionToggle.IsChecked = preset is VoiceFilter.Radio or VoiceFilter.Megaphone or VoiceFilter.Anonymous;
             NormalizerToggle.IsChecked = preset == VoiceFilter.Studio;
-            RadioColorToggle.IsChecked = preset == VoiceFilter.Reference;
+            RadioColorToggle.IsChecked = false;
             CompressionToggle.IsChecked = preset == VoiceFilter.Studio;
             VoiceShiftToggle.IsChecked = preset == VoiceFilter.Anonymous;
             RadioColorSlider.Value = CompressionSlider.Value = VoiceShiftSlider.Value = 100;
@@ -382,6 +391,20 @@ public partial class MainWindow : Window
             DistortionMixSlider.Value = preset == VoiceFilter.Anonymous ? 25 : 65;
             DistortionOutputSlider.Value = -6;
             HardClippingToggle.IsChecked = false;
+            DistortionTypeBox.SelectedIndex = 0;
+            if (preset == VoiceFilter.Reference)
+            {
+                var alastor = AlastorPreset.Settings;
+                EqToggle.IsChecked = alastor.EqualizerEnabled;
+                EqEditor.Settings = alastor.Equalizer!;
+                HighPassSlider.Value = alastor.HighPassHz;
+                SlopeBox.SelectedIndex = 3;
+                DistortionToggle.IsChecked = alastor.DistortionEnabled;
+                DistortionTypeBox.SelectedIndex = 1;
+                OverdriveAmountSlider.Value = alastor.OverdriveAmount;
+                OverdriveOutputSlider.Value = alastor.OverdriveOutput;
+                DistortionMixSlider.Value = alastor.DistortionMix;
+            }
             NormalizeSlider.Value = -3;
             MaxGainSlider.Value = 12;
             PresetState.Text = $"{Filters.First(f => f.Id == preset).Title} — ustawienia filtrów zastosowane";

@@ -66,3 +66,11 @@ Kolejność: redukcja i bramka szumów → filtr górnoprzepustowy → EQ → pr
 Urządzenia znajdują się po lewej, presety i krótki pasek mierników pośrodku, a biblioteka filtrów po prawej. Ustawienia filtrów otwierają osobne, niemodalne okna, więc można je regulować podczas odsłuchu. Przełącznik w oknie i w bibliotece steruje tym samym filtrem. Wskaźniki przechodzą z zieleni przez żółć do czerwieni przy wysokim poziomie.
 
 Presety ustawiają dostępne filtry, bez równoległego ukrytego efektu presetu. Telefon i Megafon ustawiają EQ, filtr górnoprzepustowy i przester. Studio korzysta z korekcji, filtra górnoprzepustowego, kompresora i normalizatora. Alastor włącza filtr górnoprzepustowy i barwę radiową z próbki, a Anonim dodatkowo korzysta ze zmiany wysokości głosu. Barwa radiowa, kompresor i zmiana głosu są też dostępne osobno, z regulacją intensywności. Ręczna edycja filtrów usuwa zaznaczenie presetu i pokazuje własne ustawienia. Czysty wyłącza filtry z prawej biblioteki; osobne ustawienia szumów i przestrzeni pozostają niezależne.
+### Alastor ze zrzutów Audacity (1.11)
+
+Preset Alastor korzysta teraz z EQ, Medium Overdrive (Distortion amount 49, Output level 50, domieszka 100%) i filtra górnoprzepustowego 1000 Hz / 6 dB na oktawę. Nie włącza dodatkowej Barwy radiowej.
+
+Krzywa EQ jest przybliżeniem odczytanym ze zrzutu: zawiera dodatkowe punkty i podbicia około 2 i 2,8 kHz. Edytor ma zakres ±30 dB. Skończony filtr FIR wygładza ostre wierzchołki; nie jest to numeryczny import krzywej Audacity. Przester i high-pass mają wartości liczbowe ze zrzutów.
+
+Medium Overdrive używa znormalizowanej symetrycznej krzywej wykładniczej z liniowym poziomem wyjścia. Źródła charakterystyki: [Audacity Manual](https://manual.audacityteam.org/man/distortion.html), [DistortionBase](https://doxy.audacityteam.org/_distortion_base_8cpp_source.html). HP 6 dB jest filtrem pierwszego rzędu.
+
