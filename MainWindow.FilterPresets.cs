@@ -9,7 +9,7 @@ namespace FiltrMikrofonu;
 
 public partial class MainWindow
 {
-    private sealed record SavedFilterChoice(string Name);
+    private sealed record SavedFilterChoice(string Name, FilterPreset? Factory = null);
     private FrameworkElement CreateFilterPresetBar(string key)
     {
         var panel = new StackPanel { Margin = new Thickness(0,0,0,16) };
@@ -25,13 +25,15 @@ public partial class MainWindow
         void Reload(string? select = null)
         {
             var items = new[] { new SavedFilterChoice("Wybierz preset") }
+                .Concat(VoicePresets.Names.Where(p=>VoicePresets.Uses(key,VoicePresets.Settings(p.Id)))
+                    .Select(p=>new SavedFilterChoice(p.Name+" (fabryczny)",new(Manual:VoicePresets.Settings(p.Id)))))
                 .Concat(filterPresetStore.Names(key).Select(n => new SavedFilterChoice(n))).ToArray();
             choices.ItemsSource = items;
             choices.SelectedItem = items.FirstOrDefault(i => i.Name == select) ?? items[0];
         }
         choices.SelectionChanged += (_, _) =>
         {
-            if (choices.SelectedIndex > 0 && choices.SelectedItem is SavedFilterChoice selected) name.Text = selected.Name;
+            if (choices.SelectedIndex > 0 && choices.SelectedItem is SavedFilterChoice selected) name.Text = selected.Factory is null ? selected.Name : selected.Name.Replace(" (fabryczny)", " — własny");
         };
         panel.Children.Add(choices);
         panel.Children.Add(new TextBlock { Text = "Nazwa do zapisu", FontSize = 10, Foreground = (Brush)FindResource("SecondaryBrush"), Margin = new Thickness(0,0,0,4) });
@@ -49,6 +51,7 @@ public partial class MainWindow
                     if (action == "Zapisz")
                     {
                         string title = name.Text.Trim();
+                        if(title.EndsWith(" (fabryczny)",StringComparison.Ordinal)) throw new ArgumentException("Nadaj własnemu presetowi nazwę bez dopisku (fabryczny).");
                         bool exists = filterPresetStore.Names(key).Contains(title);
                         filterPresetStore.Save(key, title, CaptureFilterPreset(key));
                         Reload(title); status.Text = exists ? "Nadpisano preset: " + title : "Zapisano preset: " + title;
@@ -59,12 +62,13 @@ public partial class MainWindow
                         { status.Text = "Najpierw wybierz zapisany preset."; return; }
                         if (action == "Wczytaj")
                         {
-                            var saved = filterPresetStore.Get(key, selected.Name);
+                            var saved = selected.Factory ?? filterPresetStore.Get(key, selected.Name);
                             if (saved is null) { Reload(); status.Text = "Preset nie jest już dostępny."; return; }
                             ApplyFilterPreset(key, saved); status.Text = "Wczytano preset: " + selected.Name;
                         }
                         else
                         {
+                            if(selected.Factory is not null){status.Text="Preset fabryczny możesz zapisać pod własną nazwą.";return;}
                             filterPresetStore.Delete(key, selected.Name); Reload(); name.Clear(); status.Text = "Usunięto preset: " + selected.Name;
                         }
                     }
@@ -110,9 +114,13 @@ public partial class MainWindow
                     DistortionTypeBox.SelectedIndex = m.MediumOverdrive ? 1 : 0;
                     OverdriveAmountSlider.Value = m.OverdriveAmount; OverdriveOutputSlider.Value = m.OverdriveOutput; break;
                 case "Normalizer" when m is not null: NormalizeSlider.Value = m.NormalizeDb; MaxGainSlider.Value = m.MaxGainDb; break;
-                case "RadioColor" when m is not null: RadioColorSlider.Value = m.RadioColorMix; break;
-                case "Compression" when m is not null: CompressionSlider.Value = m.CompressionMix; break;
-                case "VoiceShift" when m is not null: VoiceShiftSlider.Value = m.VoiceShiftMix; break;
+                case "LowPass" when m is not null:
+                    LowPassSlider.Value=m.LowPassHz;LowPassSlopeBox.SelectedIndex=m.LowPassSlope switch{24=>1,48=>2,_=>0};break;
+                case "Compression" when m is not null:
+                    CompressionSlider.Value=m.CompressionMix;CompressorThresholdSlider.Value=m.CompressorThreshold;
+                    CompressorRatioSlider.Value=m.CompressorRatio;CompressorAttackSlider.Value=m.CompressorAttack;
+                    CompressorReleaseSlider.Value=m.CompressorRelease;CompressorMakeupSlider.Value=m.CompressorMakeup;break;
+                case "Pitch" when m is not null: PitchSlider.Value=m.PitchSemitones;PitchMixSlider.Value=m.PitchMix;break;
                 case "Preverb" when saved.Room is not null:
                     SetRoomPreset("Preverb", saved.Room); BeforeTimeSlider.Value = saved.Time; BeforeMixSlider.Value = saved.Level; break;
                 case "Reverb" when saved.Room is not null: SetRoomPreset("Reverb", saved.Room); break;

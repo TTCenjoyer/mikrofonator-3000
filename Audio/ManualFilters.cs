@@ -16,10 +16,12 @@ internal sealed record ManualFilterSettings(bool EqualizerEnabled = false, Equal
     bool HighPassEnabled = false, float HighPassHz = 80, int HighPassSlope = 12,
     bool DistortionEnabled = false, bool HardClipping = false, float DriveDb = 12, float DistortionMix = 50,
     float DistortionOutputDb = -6, bool NormalizerEnabled = false, float NormalizeDb = -3, float MaxGainDb = 12,
-    bool RadioColorEnabled = false, float RadioColorMix = 100,
     bool CompressionEnabled = false, float CompressionMix = 100,
-    bool VoiceShiftEnabled = false, float VoiceShiftMix = 100,
-    bool MediumOverdrive = false, float OverdriveAmount = 49, float OverdriveOutput = 50);
+    bool MediumOverdrive = false, float OverdriveAmount = 49, float OverdriveOutput = 50,
+    bool LowPassEnabled = false, float LowPassHz = 3500, int LowPassSlope = 12,
+    bool PitchEnabled = false, float PitchSemitones = -5, float PitchMix = 100,
+    float CompressorThreshold = -18, float CompressorRatio = 3, float CompressorAttack = 10,
+    float CompressorRelease = 120, float CompressorMakeup = 3);
 
 internal sealed class ManualFilters
 {

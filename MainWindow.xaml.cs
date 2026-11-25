@@ -87,32 +87,10 @@ public partial class MainWindow : Window
         EchoMixSlider.Value = Math.Clamp(saved.EchoMix, 0, 100);
         EchoTimeSlider.Value = saved.EchoMilliseconds;
         var manual = saved.Manual ?? new ManualFilterSettings();
-        EqToggle.IsChecked = manual.EqualizerEnabled;
-        EqEditor.Settings = manual.Equalizer ?? new EqualizerSettings();
+        SetManualControls(manual);
         EqEditor.SelectionChanged += (_, _) => RefreshEqControls();
         EqEditor.Changed += (_, _) => { if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs()); };
-        HighPassToggle.IsChecked = manual.HighPassEnabled;
-        HighPassSlider.Value = manual.HighPassHz;
-        SlopeBox.SelectedIndex = manual.HighPassSlope switch { 24 => 1, 48 => 2, 6 => 3, _ => 0 };
-        DistortionToggle.IsChecked = manual.DistortionEnabled;
-        HardClippingToggle.IsChecked = manual.HardClipping;
-        DriveSlider.Value = manual.DriveDb;
-        DistortionTypeBox.SelectedIndex = manual.MediumOverdrive ? 1 : 0;
-        OverdriveAmountSlider.Value = manual.OverdriveAmount;
-        OverdriveOutputSlider.Value = manual.OverdriveOutput;
-        DistortionMixSlider.Value = manual.DistortionMix;
-        DistortionOutputSlider.Value = manual.DistortionOutputDb;
-        NormalizerToggle.IsChecked = manual.NormalizerEnabled;
-        NormalizeSlider.Value = manual.NormalizeDb;
-        MaxGainSlider.Value = manual.MaxGainDb;
-        RadioColorToggle.IsChecked = manual.RadioColorEnabled;
-        RadioColorSlider.Value = manual.RadioColorMix;
-        CompressionToggle.IsChecked = manual.CompressionEnabled;
-        CompressionSlider.Value = manual.CompressionMix;
-        VoiceShiftToggle.IsChecked = manual.VoiceShiftEnabled;
-        VoiceShiftSlider.Value = manual.VoiceShiftMix;
-        if (manual.EqualizerEnabled || manual.HighPassEnabled || manual.DistortionEnabled || manual.NormalizerEnabled ||
-            manual.RadioColorEnabled || manual.CompressionEnabled || manual.VoiceShiftEnabled)
+        if (new[] { "Eq", "HighPass", "LowPass", "Distortion", "Normalizer", "Compression", "Pitch" }.Any(key=>VoicePresets.Uses(key,manual)))
         { FilterBox.SelectedIndex = -1; PresetState.Text = "Własne ustawienia filtrów"; }
         RefreshDevices(saved.Microphone, saved.Output, saved.Monitor);
         RefreshEqControls();
@@ -278,8 +256,8 @@ public partial class MainWindow : Window
 
     private bool IsSharedFilterControl(FrameworkElement control) =>
         control == EqToggle || control == HighPassToggle || control == DistortionToggle || control == NormalizerToggle ||
-        control == RadioColorToggle || control == CompressionToggle || control == VoiceShiftToggle ||
-        new FrameworkElement[] { EqPanel, HighPassPanel, DistortionPanel, NormalizerPanel, RadioColorPanel, CompressionPanel, VoiceShiftPanel }
+        control == LowPassToggle || control == CompressionToggle || control == PitchToggle ||
+        new FrameworkElement[] { EqPanel, HighPassPanel, DistortionPanel, NormalizerPanel, LowPassPanel, CompressionPanel, PitchPanel }
             .Any(panel => panel.IsAncestorOf(control));
 
     private void Before_Changed(object sender, RoutedEventArgs e)
@@ -328,9 +306,15 @@ public partial class MainWindow : Window
         DistortionOutputValue.Text = $"{DistortionOutputSlider.Value:0} dB";
         NormalizeValue.Text = $"{NormalizeSlider.Value:0} dB";
         MaxGainValue.Text = $"{MaxGainSlider.Value:0} dB";
-        RadioColorValue.Text = $"{RadioColorSlider.Value:0}%";
+        LowPassValue.Text = $"{LowPassSlider.Value:0} Hz";
+        CompressorThresholdValue.Text = $"{CompressorThresholdSlider.Value:0} dB";
+        CompressorRatioValue.Text = $"{CompressorRatioSlider.Value:0.0}:1";
+        CompressorAttackValue.Text = $"{CompressorAttackSlider.Value:0} ms";
+        CompressorReleaseValue.Text = $"{CompressorReleaseSlider.Value:0} ms";
+        CompressorMakeupValue.Text = $"{CompressorMakeupSlider.Value:0} dB";
+        PitchMixValue.Text = $"{PitchMixSlider.Value:0}%";
         CompressionValue.Text = $"{CompressionSlider.Value:0}%";
-        VoiceShiftValue.Text = $"{VoiceShiftSlider.Value:0}%";
+        PitchValue.Text = $"{PitchSlider.Value:+0.0;-0.0;0.0} półtonów";
         bool medium = DistortionTypeBox.SelectedIndex == 1;
         StandardDistortionPanel.Visibility = medium ? Visibility.Collapsed : Visibility.Visible;
         MediumOverdrivePanel.Visibility = medium ? Visibility.Visible : Visibility.Collapsed;
@@ -416,62 +400,46 @@ public partial class MainWindow : Window
         }
     }
 
-    private ManualFilterSettings GetManualSettings() => new(EqToggle.IsChecked == true, EqEditor.Settings,
-        HighPassToggle.IsChecked == true, (float)HighPassSlider.Value, SlopeBox.SelectedIndex switch { 1 => 24, 2 => 48, 3 => 6, _ => 12 },
-        DistortionToggle.IsChecked == true, HardClippingToggle.IsChecked == true, (float)DriveSlider.Value,
-        (float)DistortionMixSlider.Value, (float)DistortionOutputSlider.Value, NormalizerToggle.IsChecked == true,
-        (float)NormalizeSlider.Value, (float)MaxGainSlider.Value,
-        RadioColorToggle.IsChecked == true, (float)RadioColorSlider.Value,
-        CompressionToggle.IsChecked == true, (float)CompressionSlider.Value,
-        VoiceShiftToggle.IsChecked == true, (float)VoiceShiftSlider.Value,
-        DistortionTypeBox.SelectedIndex == 1, (float)OverdriveAmountSlider.Value, (float)OverdriveOutputSlider.Value);
+    private ManualFilterSettings GetManualSettings() => new(
+        EqualizerEnabled: EqToggle.IsChecked == true, Equalizer: EqEditor.Settings,
+        HighPassEnabled: HighPassToggle.IsChecked == true, HighPassHz: (float)HighPassSlider.Value,
+        HighPassSlope: SlopeBox.SelectedIndex switch { 1=>24,2=>48,3=>6,_=>12 },
+        DistortionEnabled: DistortionToggle.IsChecked == true, HardClipping: HardClippingToggle.IsChecked == true,
+        DriveDb:(float)DriveSlider.Value, DistortionMix:(float)DistortionMixSlider.Value,DistortionOutputDb:(float)DistortionOutputSlider.Value,
+        NormalizerEnabled:NormalizerToggle.IsChecked == true,NormalizeDb:(float)NormalizeSlider.Value,MaxGainDb:(float)MaxGainSlider.Value,
+        CompressionEnabled:CompressionToggle.IsChecked==true,CompressionMix:(float)CompressionSlider.Value,
+        MediumOverdrive:DistortionTypeBox.SelectedIndex==1,OverdriveAmount:(float)OverdriveAmountSlider.Value,OverdriveOutput:(float)OverdriveOutputSlider.Value,
+        LowPassEnabled:LowPassToggle.IsChecked==true,LowPassHz:(float)LowPassSlider.Value,LowPassSlope:LowPassSlopeBox.SelectedIndex switch{1=>24,2=>48,_=>12},
+        PitchEnabled:PitchToggle.IsChecked==true,PitchSemitones:(float)PitchSlider.Value,PitchMix:(float)PitchMixSlider.Value,
+        CompressorThreshold:(float)CompressorThresholdSlider.Value,CompressorRatio:(float)CompressorRatioSlider.Value,
+        CompressorAttack:(float)CompressorAttackSlider.Value,CompressorRelease:(float)CompressorReleaseSlider.Value,CompressorMakeup:(float)CompressorMakeupSlider.Value);
+
+    private void SetManualControls(ManualFilterSettings m)
+    {
+        EqToggle.IsChecked=m.EqualizerEnabled;EqEditor.Settings=m.Equalizer??new();
+        HighPassToggle.IsChecked=m.HighPassEnabled;HighPassSlider.Value=m.HighPassHz;
+        SlopeBox.SelectedIndex=m.HighPassSlope switch{24=>1,48=>2,6=>3,_=>0};
+        LowPassToggle.IsChecked=m.LowPassEnabled;LowPassSlider.Value=m.LowPassHz;
+        LowPassSlopeBox.SelectedIndex=m.LowPassSlope switch{24=>1,48=>2,_=>0};
+        DistortionToggle.IsChecked=m.DistortionEnabled;HardClippingToggle.IsChecked=m.HardClipping;DriveSlider.Value=m.DriveDb;
+        DistortionMixSlider.Value=m.DistortionMix;DistortionOutputSlider.Value=m.DistortionOutputDb;
+        DistortionTypeBox.SelectedIndex=m.MediumOverdrive?1:0;OverdriveAmountSlider.Value=m.OverdriveAmount;OverdriveOutputSlider.Value=m.OverdriveOutput;
+        NormalizerToggle.IsChecked=m.NormalizerEnabled;NormalizeSlider.Value=m.NormalizeDb;MaxGainSlider.Value=m.MaxGainDb;
+        CompressionToggle.IsChecked=m.CompressionEnabled;CompressionSlider.Value=m.CompressionMix;
+        CompressorThresholdSlider.Value=m.CompressorThreshold;CompressorRatioSlider.Value=m.CompressorRatio;
+        CompressorAttackSlider.Value=m.CompressorAttack;CompressorReleaseSlider.Value=m.CompressorRelease;CompressorMakeupSlider.Value=m.CompressorMakeup;
+        PitchToggle.IsChecked=m.PitchEnabled;PitchSlider.Value=m.PitchSemitones;PitchMixSlider.Value=m.PitchMix;
+    }
 
     private void ApplyPreset(VoiceFilter preset)
     {
-        applyingPreset = true;
+        applyingPreset=true;
         try
         {
-            EqToggle.IsChecked = preset is VoiceFilter.Studio or VoiceFilter.Radio or VoiceFilter.Megaphone or VoiceFilter.Anonymous;
-            HighPassToggle.IsChecked = preset is not VoiceFilter.Clean;
-            DistortionToggle.IsChecked = preset is VoiceFilter.Radio or VoiceFilter.Megaphone or VoiceFilter.Anonymous;
-            NormalizerToggle.IsChecked = preset == VoiceFilter.Studio;
-            RadioColorToggle.IsChecked = false;
-            CompressionToggle.IsChecked = preset == VoiceFilter.Studio;
-            VoiceShiftToggle.IsChecked = preset == VoiceFilter.Anonymous;
-            RadioColorSlider.Value = CompressionSlider.Value = VoiceShiftSlider.Value = 100;
-            HighPassSlider.Value = preset switch { VoiceFilter.Radio => 340, VoiceFilter.Megaphone => 640, _ => 80 };
-            SlopeBox.SelectedIndex = preset == VoiceFilter.Megaphone ? 1 : 0;
-            EqEditor.Settings = preset switch
-            {
-                VoiceFilter.Studio => new(0,0,-3,-1,0,1,3,0),
-                VoiceFilter.Radio => new(-18,-12,-3,0,3,4,-10,-18),
-                VoiceFilter.Megaphone => new(-18,-18,-12,-4,1,9,-5,-18),
-                VoiceFilter.Anonymous => new(-4,2,3,0,-2,-4,-10,-18),
-                _ => new()
-            };
-            DriveSlider.Value = preset == VoiceFilter.Megaphone ? 16 : 7;
-            DistortionMixSlider.Value = preset == VoiceFilter.Anonymous ? 25 : 65;
-            DistortionOutputSlider.Value = -6;
-            HardClippingToggle.IsChecked = false;
-            DistortionTypeBox.SelectedIndex = 0;
-            if (preset == VoiceFilter.Reference)
-            {
-                var alastor = AlastorPreset.Settings;
-                EqToggle.IsChecked = alastor.EqualizerEnabled;
-                EqEditor.Settings = alastor.Equalizer!;
-                HighPassSlider.Value = alastor.HighPassHz;
-                SlopeBox.SelectedIndex = 3;
-                DistortionToggle.IsChecked = alastor.DistortionEnabled;
-                DistortionTypeBox.SelectedIndex = 1;
-                OverdriveAmountSlider.Value = alastor.OverdriveAmount;
-                OverdriveOutputSlider.Value = alastor.OverdriveOutput;
-                DistortionMixSlider.Value = alastor.DistortionMix;
-            }
-            NormalizeSlider.Value = -3;
-            MaxGainSlider.Value = 12;
-            PresetState.Text = $"{Filters.First(f => f.Id == preset).Title} — ustawienia filtrów zastosowane";
+            SetManualControls(VoicePresets.Settings(preset));
+            PresetState.Text=$"{Filters.First(f=>f.Id==preset).Title} — ustawienia filtrów zastosowane";
         }
-        finally { applyingPreset = false; }
+        finally{applyingPreset=false;}
         RefreshEffect();
     }
 

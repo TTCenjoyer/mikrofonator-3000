@@ -88,3 +88,13 @@ Skalę częstotliwości można przełączyć między logarytmiczną i liniową, 
 W każdym oknie filtra znajduje się osobna lista presetów. Wpisz nazwę i kliknij **Zapisz**, aby zachować jego aktualne parametry. Ponowne zapisanie tej samej nazwy nadpisuje preset tego filtra. Wybierz nazwę z listy i kliknij **Wczytaj**, aby zastosować parametry. **Usuń** usuwa wybrany zapis. Ta sama nazwa może istnieć niezależnie dla EQ, przesteru i innych filtrów.
 
 Preverb, reverb, echo, bramka i redukcja szumów mają analogiczne listy w rozwijanej sekcji **Presety filtra**. Wczytanie zachowuje stan włącznika i parametry pozostałych efektów. Presety są zapisywane od razu w lokalnym pliku `filter-presets.json` w katalogu ustawień aplikacji; nie trzeba zamykać programu.
+
+
+### Podstawowe efekty i zgodne presety (1.14)
+Aktualna biblioteka zawiera EQ, filtr górnoprzepustowy, filtr dolnoprzepustowy, przester, normalizator, kompresor i zmianę wysokości tonu. Pozostają też bramka, redukcja szumów, preverb, reverb i echo. Barwa radiowa i Zmiana głosu zostały usunięte z toru aplikacji.
+
+Kompresor ma próg w dB, proporcję, atak, powrót, wzmocnienie wyjścia i domieszkę. Nie dodaje własnego EQ. Zmiana wysokości ustawia półtony (−12 do +12) i domieszkę, bez wbudowanego przesteru czy korekcji. Filtr dolnoprzepustowy ma częstotliwość odcięcia i nachylenie 12/24/48 dB na oktawę.
+
+Wszystkie presety główne pobierają ustawienia z `VoicePresets`. Fabryczne presety w oknach filtrów korzystają z tych samych definicji i ładują tylko parametry danego efektu. Alastor zachowuje EQ, Medium Overdrive 49/50 i HP 1000 Hz / 6 dB z przesłanych zrzutów. Telefon i Megafon używają EQ, HP, LP i przesteru. Studio używa EQ, HP, kompresora i normalizatora. Anonim używa EQ, HP, LP, przesteru i zmiany wysokości −5 półtonów. Własne presety pozostają dostępne obok fabrycznych.
+
+Tor głosowy: redukcja i bramka szumów → HP → EQ → przester → LP → kompresor → zmiana wysokości → normalizator → preverb → reverb/echo. Wybór presetu ustawia wyłącznie te jawne efekty; nie uruchamia dodatkowego przetwarzania przypisanego do nazwy presetu.

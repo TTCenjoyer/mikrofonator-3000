@@ -457,8 +457,8 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Button Content="Barwa radiowa  ›" Tag="RadioColor" Click="OpenFilter_Click" HorizontalContentAlignment="Left" Padding="10,13" Margin="0,0,9,0" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Cursor="Hand" AutomationProperties.Name="Ustawienia — Barwa radiowa" />
-                        <CheckBox x:Name="RadioColorToggle" Style="{StaticResource MonitorSwitch}" Checked="Effect_Changed" Unchecked="Effect_Changed" AutomationProperties.Name="Barwa radiowa" Grid.Column="1" VerticalAlignment="Center" />
+                        <Button Content="Dolnoprzepustowy  ›" Tag="LowPass" Click="OpenFilter_Click" HorizontalContentAlignment="Left" Padding="10,13" Margin="0,0,9,0" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Cursor="Hand" AutomationProperties.Name="Ustawienia — Dolnoprzepustowy" />
+                        <CheckBox x:Name="LowPassToggle" Style="{StaticResource MonitorSwitch}" Checked="Effect_Changed" Unchecked="Effect_Changed" AutomationProperties.Name="Dolnoprzepustowy" Grid.Column="1" VerticalAlignment="Center" />
                     </Grid>
                     <Grid Margin="0,0,0,9">
                         <Grid.ColumnDefinitions>
@@ -473,8 +473,8 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Button Content="Zmiana głosu  ›" Tag="VoiceShift" Click="OpenFilter_Click" HorizontalContentAlignment="Left" Padding="10,13" Margin="0,0,9,0" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Cursor="Hand" AutomationProperties.Name="Ustawienia — Zmiana głosu" />
-                        <CheckBox x:Name="VoiceShiftToggle" Style="{StaticResource MonitorSwitch}" Checked="Effect_Changed" Unchecked="Effect_Changed" AutomationProperties.Name="Zmiana głosu" Grid.Column="1" VerticalAlignment="Center" />
+                        <Button Content="Wysokość tonu  ›" Tag="Pitch" Click="OpenFilter_Click" HorizontalContentAlignment="Left" Padding="10,13" Margin="0,0,9,0" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Cursor="Hand" AutomationProperties.Name="Ustawienia — Wysokość tonu" />
+                        <CheckBox x:Name="PitchToggle" Style="{StaticResource MonitorSwitch}" Checked="Effect_Changed" Unchecked="Effect_Changed" AutomationProperties.Name="Wysokość tonu" Grid.Column="1" VerticalAlignment="Center" />
                     </Grid>
                 </StackPanel>
             </Border>
@@ -488,24 +488,59 @@
                     <CheckBox x:Name="EqGridToggle" Content="Siatka" IsChecked="True" Checked="EqView_Changed" Unchecked="EqView_Changed" Foreground="{StaticResource SecondaryBrush}" />
                 </WrapPanel>
                 <Grid Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <StackPanel><TextBlock Text="Częstotliwość (Hz)" Style="{StaticResource Label}"/><TextBox x:Name="EqHzBox" Margin="0,5,0,0" Padding="8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" KeyDown="EqNumber_KeyDown" AutomationProperties.Name="Częstotliwość punktu EQ"/></StackPanel>
-                    <StackPanel Grid.Column="2"><TextBlock Text="Wzmocnienie (dB)" Style="{StaticResource Label}"/><TextBox x:Name="EqDbBox" Margin="0,5,0,0" Padding="8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" KeyDown="EqNumber_KeyDown" AutomationProperties.Name="Wzmocnienie punktu EQ"/></StackPanel>
-                    <Button Grid.Column="4" Content="Zmień punkt" Tag="Edit" Click="EqAction_Click" VerticalAlignment="Bottom" Padding="12,8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Częstotliwość (Hz)" Style="{StaticResource Label}" />
+                        <TextBox x:Name="EqHzBox" Margin="0,5,0,0" Padding="8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" KeyDown="EqNumber_KeyDown" AutomationProperties.Name="Częstotliwość punktu EQ" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Wzmocnienie (dB)" Style="{StaticResource Label}" />
+                        <TextBox x:Name="EqDbBox" Margin="0,5,0,0" Padding="8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" KeyDown="EqNumber_KeyDown" AutomationProperties.Name="Wzmocnienie punktu EQ" />
+                    </StackPanel>
+                    <Button Grid.Column="4" Content="Zmień punkt" Tag="Edit" Click="EqAction_Click" VerticalAlignment="Bottom" Padding="12,8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" />
                 </Grid>
-                <TextBlock x:Name="EqEditStatus" Text="20–20 000 Hz · od −30 do +30 dB" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,10"/>
+                <TextBlock x:Name="EqEditStatus" Text="20–20 000 Hz · od −30 do +30 dB" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,10" />
                 <WrapPanel>
-                    <WrapPanel.Resources><Style TargetType="Button"><Setter Property="Background" Value="{StaticResource FieldBrush}"/><Setter Property="Foreground" Value="{StaticResource InkBrush}"/><Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="ButtonSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonSurface" Property="Opacity" Value="0.4"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonSurface" Property="Background" Value="{StaticResource HoverBrush}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></WrapPanel.Resources>
-                    <Button Content="Dodaj punkt" Tag="Add" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
-                    <Button x:Name="EqDeleteButton" Content="Usuń punkt" Tag="Delete" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
-                    <Button Content="Poprzedni" Tag="Previous" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
-                    <Button Content="Następny" Tag="Next" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
-                    <Button Content="Wyzeruj EQ" Click="ResetEq_Click" Padding="10,7" Margin="0,0,7,7"/>
-                    <Button Content="Odwróć krzywą" Tag="Invert" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
-                    <Button x:Name="EqUndoButton" Content="Cofnij" Tag="Undo" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
-                    <Button x:Name="EqRedoButton" Content="Ponów" Tag="Redo" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <WrapPanel.Resources>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="{StaticResource FieldBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+                            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.4" />
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ButtonSurface" Property="Background" Value="{StaticResource HoverBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </WrapPanel.Resources>
+                    <Button Content="Dodaj punkt" Tag="Add" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7" />
+                    <Button x:Name="EqDeleteButton" Content="Usuń punkt" Tag="Delete" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7" />
+                    <Button Content="Poprzedni" Tag="Previous" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7" />
+                    <Button Content="Następny" Tag="Next" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7" />
+                    <Button Content="Wyzeruj EQ" Click="ResetEq_Click" Padding="10,7" Margin="0,0,7,7" />
+                    <Button Content="Odwróć krzywą" Tag="Invert" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7" />
+                    <Button x:Name="EqUndoButton" Content="Cofnij" Tag="Undo" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7" />
+                    <Button x:Name="EqRedoButton" Content="Ponów" Tag="Redo" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7" />
                 </WrapPanel>
-                <TextBlock Text="Strzałki zmieniają Hz i dB; Shift zwiększa precyzję. Page Up / Down wybierają punkt. Ctrl+Z / Ctrl+Y cofa i ponawia." Style="{StaticResource Label}" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                <TextBlock Text="Strzałki zmieniają Hz i dB; Shift zwiększa precyzję. Page Up / Down wybierają punkt. Ctrl+Z / Ctrl+Y cofa i ponawia." Style="{StaticResource Label}" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" />
             </StackPanel>
             <StackPanel x:Name="HighPassPanel">
                 <Grid>
@@ -569,29 +604,61 @@
                 <Slider x:Name="MaxGainSlider" Minimum="0" Maximum="18" Value="12" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Maks. podbicie" />
                 <TextBlock Text="Automatyczna regulacja poziomu na żywo" Style="{StaticResource Label}" FontSize="10" TextWrapping="Wrap" />
             </StackPanel>
-            <StackPanel x:Name="RadioColorPanel">
-                <TextBlock Text="Charakter Alastora z próbki, z korekcją sybilantów." TextWrapping="Wrap" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,0,20" />
+            <StackPanel x:Name="LowPassPanel">
                 <Grid>
-                    <TextBlock Text="Intensywność" Style="{StaticResource Label}" />
-                    <TextBlock x:Name="RadioColorValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock Text="Częstotliwość odcięcia (Hz)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="LowPassValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
                 </Grid>
-                <Slider x:Name="RadioColorSlider" Minimum="0" Maximum="100" Value="100" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Intensywność — Barwa radiowa" />
+                <Slider x:Name="LowPassSlider" Minimum="20" Maximum="20000" Value="3500" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Częstotliwość odcięcia (Hz)" />
+                <ComboBox x:Name="LowPassSlopeBox" Style="{StaticResource DevicePicker}" SelectedIndex="0" SelectionChanged="Effect_Changed" AutomationProperties.Name="Nachylenie filtra dolnoprzepustowego">
+                    <ComboBoxItem Content="12 dB / oktawę" />
+                    <ComboBoxItem Content="24 dB / oktawę" />
+                    <ComboBoxItem Content="48 dB / oktawę" />
+                </ComboBox>
             </StackPanel>
             <StackPanel x:Name="CompressionPanel">
-                <TextBlock Text="Wyrównuje dynamikę i podkreśla barwę głosu." TextWrapping="Wrap" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,0,20" />
                 <Grid>
-                    <TextBlock Text="Intensywność" Style="{StaticResource Label}" />
-                    <TextBlock x:Name="CompressionValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock Text="Próg (dB)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="CompressorThresholdValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
                 </Grid>
-                <Slider x:Name="CompressionSlider" Minimum="0" Maximum="100" Value="100" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Intensywność — Kompresor" />
+                <Slider x:Name="CompressorThresholdSlider" Minimum="-60" Maximum="0" Value="-18" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Próg (dB)" />
+                <Grid>
+                    <TextBlock Text="Proporcja (ratio)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="CompressorRatioValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                </Grid>
+                <Slider x:Name="CompressorRatioSlider" Minimum="1" Maximum="20" Value="3" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Proporcja (ratio)" />
+                <Grid>
+                    <TextBlock Text="Atak (ms)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="CompressorAttackValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                </Grid>
+                <Slider x:Name="CompressorAttackSlider" Minimum="1" Maximum="200" Value="10" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Atak (ms)" />
+                <Grid>
+                    <TextBlock Text="Powrót (ms)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="CompressorReleaseValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                </Grid>
+                <Slider x:Name="CompressorReleaseSlider" Minimum="20" Maximum="2000" Value="120" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Powrót (ms)" />
+                <Grid>
+                    <TextBlock Text="Wzmocnienie (dB)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="CompressorMakeupValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                </Grid>
+                <Slider x:Name="CompressorMakeupSlider" Minimum="-12" Maximum="24" Value="3" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Wzmocnienie (dB)" />
+                <Grid>
+                    <TextBlock Text="Domieszka (%)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="CompressionValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                </Grid>
+                <Slider x:Name="CompressionSlider" Minimum="0" Maximum="100" Value="100" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Domieszka (%)" />
             </StackPanel>
-            <StackPanel x:Name="VoiceShiftPanel">
-                <TextBlock Text="Obniża i zniekształca głos w stylu Anonima." TextWrapping="Wrap" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,0,20" />
+            <StackPanel x:Name="PitchPanel">
                 <Grid>
-                    <TextBlock Text="Intensywność" Style="{StaticResource Label}" />
-                    <TextBlock x:Name="VoiceShiftValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock Text="Zmiana wysokości (półtony)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="PitchValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
                 </Grid>
-                <Slider x:Name="VoiceShiftSlider" Minimum="0" Maximum="100" Value="100" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Intensywność — Zmiana głosu" />
+                <Slider x:Name="PitchSlider" Minimum="-12" Maximum="12" Value="-5" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Zmiana wysokości (półtony)" />
+                <Grid>
+                    <TextBlock Text="Domieszka (%)" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="PitchMixValue" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                </Grid>
+                <Slider x:Name="PitchMixSlider" Minimum="0" Maximum="100" Value="100" Style="{StaticResource LevelSlider}" ValueChanged="Effect_Changed" AutomationProperties.Name="Domieszka (%)" />
             </StackPanel>
         </Grid>
     </Grid>
