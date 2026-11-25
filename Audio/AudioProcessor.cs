@@ -10,7 +10,7 @@ internal enum VoiceFilter
 internal sealed record FilterSettings(VoiceFilter Filter, float Mix, float InputGain, float OutputGain,
     int BeforeMilliseconds = BeforeVoiceEcho.DefaultMilliseconds,
     float RoomMix = 0, int RoomMilliseconds = VoiceAmbience.DefaultRoomMilliseconds,
-    float EchoMix = 0, int EchoMilliseconds = VoiceAmbience.DefaultEchoMilliseconds, ReverbSettings? Reverb = null, ReverbSettings? Preverb = null, bool BeforeEnabled = false, float BeforeMix = 1, NoiseSettings? Noise = null)
+    float EchoMix = 0, int EchoMilliseconds = VoiceAmbience.DefaultEchoMilliseconds, ReverbSettings? Reverb = null, ReverbSettings? Preverb = null, bool BeforeEnabled = false, float BeforeMix = 1, NoiseSettings? Noise = null, ManualFilterSettings? Manual = null)
 {
     public bool UsesPreverb => BeforeEnabled || Filter == VoiceFilter.BeforeVoice;
     public VoiceFilter Tone => Filter == VoiceFilter.BeforeVoice ? VoiceFilter.Clean : Filter;
@@ -26,6 +26,7 @@ internal sealed class AudioProcessor
     private readonly VoiceAmbience ambience;
     private readonly AnonymousVoice anonymous;
     private readonly NoiseProcessor noise;
+    private readonly ManualFilters manual;
     private readonly BiQuadFilter studioHighPass, studioLowMid, studioPresence;
     private readonly BiQuadFilter radioHighPass, radioLowPass, radioPresence;
     private readonly BiQuadFilter megaphoneHighPass, megaphoneResonance, megaphoneLowPass;
@@ -44,6 +45,7 @@ internal sealed class AudioProcessor
         ambience = new VoiceAmbience(sampleRate, initial);
         anonymous = new AnonymousVoice(sampleRate);
         noise = new NoiseProcessor(sampleRate, initial.Noise);
+        manual = new ManualFilters(sampleRate, initial.Manual);
         studioHighPass = BiQuadFilter.HighPassFilter(sampleRate, 82, .707f);
         studioLowMid = BiQuadFilter.PeakingEQ(sampleRate, 260, .9f, -3);
         studioPresence = BiQuadFilter.PeakingEQ(sampleRate, Math.Min(3150, sampleRate * .4f), .8f, 3.5f);
@@ -76,6 +78,7 @@ internal sealed class AudioProcessor
         beforeVoice.SetParameters(settings.BeforeMilliseconds, settings.Preverb);
         ambience.Update(settings);
         noise.Update(settings.Noise);
+        manual.Update(settings.Manual);
         if (settings.UsesPreverb && !beforeEnabled)
             beforeVoice.Reset();
         beforeEnabled = settings.UsesPreverb;
@@ -89,7 +92,7 @@ internal sealed class AudioProcessor
 
             float input = samples[i] * inputGain;
             inputPeak = Math.Max(inputPeak, Math.Abs(input));
-            float dry = reference.Push(noise.Process(input));
+            float dry = reference.Push(manual.Process(noise.Process(input)));
             if (fadeRemaining == 0 && currentFilter != settings.Tone)
             {
                 nextFilter = settings.Tone;
@@ -104,6 +107,8 @@ internal sealed class AudioProcessor
                 if (--fadeRemaining == 0)
                     currentFilter = nextFilter;
             }
+
+            filtered = manual.Normalize(filtered);
 
             // Shape the voice first, then generate its anticipation and delayed voice.
             var (delayedVoice, reverse) = beforeEnabled || beforeBlend > 0

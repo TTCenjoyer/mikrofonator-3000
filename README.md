@@ -49,3 +49,14 @@ Bramka i redukcja szumów działają przed filtrami głosu, Preverb, Reverb i Ec
 ## Własny wirtualny mikrofon
 
 W katalogu Driver znajduje się prototyp źródeł sterownika na bazie Microsoft SysVAD. Wersja 1.8 wykrywa jego docelowe urządzenia Filtr Mikrofonu Input i Filtr Mikrofonu Microphone. Sterownik wymaga kompilacji z WDK, testów oraz podpisu akceptowanego przez Windows przed instalacją. Ten pakiet EXE obsługuje obecne wyjścia audio, w tym VB-CABLE, do czasu ukończenia sterownika.
+
+
+### Presety i filtry (1.9)
+Dotychczasowe barwy głosu są dostępne jako **Presety**. Lewy panel **Filtry** działa niezależnie od wybranego presetu. Ustawienia filtrów zapisują się przy zamknięciu aplikacji.
+
+- **Korektor EQ** — osiem punktów 63 Hz–16 kHz, zakres ±18 dB, proste odcinki na logarytmicznej osi częstotliwości. Przeciąganie zmienia punkt, dwuklik zeruje pasmo. Po zaznaczeniu wykresu strzałki lewo/prawo wybierają pasmo, góra/dół zmieniają je o 0,5 dB. Przycisk zeruje całą krzywą. Symetryczny filtr FIR zachowuje liniową fazę; tor ma stałe dodatkowe opóźnienie 512 próbek (10,7 ms przy 48 kHz), także przy wyłączonym EQ, aby przełączanie nie zmieniało synchronizacji.
+- **Filtr górnoprzepustowy** — odcięcie 20–3000 Hz, nachylenie 12/24/48 dB na oktawę.
+- **Przester (distortion)** — siła, domieszka, poziom wyjściowy i twarde lub miękkie obcinanie.
+- **Normalizator** — automatyczna regulacja poziomu na żywo z docelowym poziomem szczytowym i ograniczeniem maksymalnego podbicia. To adaptacja do streamingu; nie analizuje całego nagrania z wyprzedzeniem jak efekt offline.
+
+Kolejność: redukcja i bramka szumów → filtr górnoprzepustowy → EQ → przester → preset → normalizator → preverb → reverb i echo. Nowe filtry są domyślnie wyłączone i mają niezależne włączniki.

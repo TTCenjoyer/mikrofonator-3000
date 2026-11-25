@@ -81,6 +81,21 @@ public partial class MainWindow : Window
         NoiseReductionSlider.Value = noise.Reduction;
         EchoMixSlider.Value = Math.Clamp(saved.EchoMix, 0, 100);
         EchoTimeSlider.Value = saved.EchoMilliseconds;
+        var manual = saved.Manual ?? new ManualFilterSettings();
+        EqToggle.IsChecked = manual.EqualizerEnabled;
+        EqEditor.Settings = manual.Equalizer ?? new EqualizerSettings();
+        EqEditor.Changed += (_, _) => { if (initialized) RefreshEffect(); };
+        HighPassToggle.IsChecked = manual.HighPassEnabled;
+        HighPassSlider.Value = manual.HighPassHz;
+        SlopeBox.SelectedIndex = manual.HighPassSlope switch { 24 => 1, 48 => 2, _ => 0 };
+        DistortionToggle.IsChecked = manual.DistortionEnabled;
+        HardClippingToggle.IsChecked = manual.HardClipping;
+        DriveSlider.Value = manual.DriveDb;
+        DistortionMixSlider.Value = manual.DistortionMix;
+        DistortionOutputSlider.Value = manual.DistortionOutputDb;
+        NormalizerToggle.IsChecked = manual.NormalizerEnabled;
+        NormalizeSlider.Value = manual.NormalizeDb;
+        MaxGainSlider.Value = manual.MaxGainDb;
         RefreshDevices(saved.Microphone, saved.Output, saved.Monitor);
         initialized = true;
         RefreshEffect();
@@ -257,6 +272,12 @@ public partial class MainWindow : Window
         GateReleaseValue.Text = $"{GateReleaseSlider.Value:0} ms";
         NoiseFloorValue.Text = $"{NoiseFloorSlider.Value:0} dB";
         NoiseReductionValue.Text = $"{NoiseReductionSlider.Value:0}%";
+        HighPassValue.Text = $"{HighPassSlider.Value:0} Hz";
+        DriveValue.Text = $"{DriveSlider.Value:0} dB";
+        DistortionMixValue.Text = $"{DistortionMixSlider.Value:0}%";
+        DistortionOutputValue.Text = $"{DistortionOutputSlider.Value:0} dB";
+        NormalizeValue.Text = $"{NormalizeSlider.Value:0} dB";
+        MaxGainValue.Text = $"{MaxGainSlider.Value:0} dB";
         session?.SetFilter(GetFilterSettings());
     }
 
@@ -271,7 +292,7 @@ public partial class MainWindow : Window
         (int)BeforeTimeSlider.Value,
         RoomToggle.IsChecked == true ? 1 : 0, VoiceAmbience.DefaultRoomMilliseconds,
         EchoToggle.IsChecked == true ? (float)EchoMixSlider.Value / 100 : 0, (int)EchoTimeSlider.Value, GetReverbSettings(), GetPreverbSettings(),
-        BeforeToggle.IsChecked == true, (float)BeforeMixSlider.Value / 100, GetNoiseSettings());
+        BeforeToggle.IsChecked == true, (float)BeforeMixSlider.Value / 100, GetNoiseSettings(), GetManualSettings());
 
     private ReverbSettings GetReverbSettings() => new(
         (float)ReverbSizeSlider.Value, (float)ReverbPreDelaySlider.Value, (float)ReverbDecaySlider.Value, (float)ReverbDampingSlider.Value, (float)ReverbLowSlider.Value, (float)ReverbHighSlider.Value, (float)ReverbWetSlider.Value, (float)ReverbDrySlider.Value, (float)ReverbWidthSlider.Value, ReverbWetOnly.IsChecked == true);
@@ -282,6 +303,18 @@ public partial class MainWindow : Window
     private NoiseSettings GetNoiseSettings() => new(GateToggle.IsChecked == true,
         (float)GateThresholdSlider.Value, (int)GateHoldSlider.Value, (int)GateReleaseSlider.Value,
         DenoiseToggle.IsChecked == true, (float)NoiseFloorSlider.Value, (float)NoiseReductionSlider.Value);
+
+    private void ResetEq_Click(object sender, RoutedEventArgs e)
+    {
+        EqEditor.Settings = new EqualizerSettings();
+        if (initialized) RefreshEffect();
+    }
+
+    private ManualFilterSettings GetManualSettings() => new(EqToggle.IsChecked == true, EqEditor.Settings,
+        HighPassToggle.IsChecked == true, (float)HighPassSlider.Value, SlopeBox.SelectedIndex switch { 1 => 24, 2 => 48, _ => 12 },
+        DistortionToggle.IsChecked == true, HardClippingToggle.IsChecked == true, (float)DriveSlider.Value,
+        (float)DistortionMixSlider.Value, (float)DistortionOutputSlider.Value, NormalizerToggle.IsChecked == true,
+        (float)NormalizeSlider.Value, (float)MaxGainSlider.Value);
 
     private bool IsCableLoop => Microphone?.CablePair is string pair && pair == Output?.CablePair;
 
@@ -428,7 +461,7 @@ public partial class MainWindow : Window
             MixSlider.Value, InputSlider.Value, OutputSlider.Value,
             BeforeMixSlider.Value, (int)BeforeTimeSlider.Value,
             RoomToggle.IsChecked == true, 100, VoiceAmbience.DefaultRoomMilliseconds,
-            EchoToggle.IsChecked == true, EchoMixSlider.Value, (int)EchoTimeSlider.Value, GetReverbSettings(), GetPreverbSettings(), 1, GetNoiseSettings()));
+            EchoToggle.IsChecked == true, EchoMixSlider.Value, (int)EchoTimeSlider.Value, GetReverbSettings(), GetPreverbSettings(), 1, GetNoiseSettings(), GetManualSettings()));
         _ = FinishCloseAsync();
     }
 
