@@ -6,9 +6,9 @@ namespace FiltrMikrofonu;
 public sealed class LevelMeter : FrameworkElement
 {
     public static readonly DependencyProperty AccentProperty = DependencyProperty.Register(nameof(Accent), typeof(Brush),
-        typeof(LevelMeter), new FrameworkPropertyMetadata(Brushes.MediumPurple, FrameworkPropertyMetadataOptions.AffectsRender));
+        typeof(LevelMeter), new FrameworkPropertyMetadata(Brushes.SteelBlue, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    private static readonly Brush Track = Freeze(Color.FromRgb(56, 50, 73));
+    private static readonly Brush Track = Freeze(Color.FromRgb(29, 38, 49));
     private static readonly Brush Amber = Freeze(Color.FromRgb(255, 191, 123));
     private double normalizedLevel;
 

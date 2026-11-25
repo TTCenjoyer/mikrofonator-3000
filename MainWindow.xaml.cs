@@ -100,7 +100,7 @@ public partial class MainWindow : Window
         nint handle = new WindowInteropHelper(this).Handle;
         int dark = 1;
         DwmSetWindowAttribute(handle, 20, ref dark, sizeof(int));
-        int captionColor = 0x001A1112;
+        int captionColor = 0x000D0A08;
         DwmSetWindowAttribute(handle, 35, ref captionColor, sizeof(int));
     }
 

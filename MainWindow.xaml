@@ -23,11 +23,11 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="51" Height="51" CornerRadius="13" BorderThickness="1" BorderBrush="#574479" Margin="0,0,13,0">
+                    <Border Width="51" Height="51" CornerRadius="13" BorderThickness="1" BorderBrush="#294763" Margin="0,0,13,0">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#473368" Offset="0" />
-                                <GradientStop Color="#29203E" Offset="1" />
+                                <GradientStop Color="#1D344A" Offset="0" />
+                                <GradientStop Color="#101D2A" Offset="1" />
                             </LinearGradientBrush>
                         </Border.Background>
                         <Path Data="M2,13 L2,17 M8,9 L8,21 M14,4 L14,26 M20,8 L20,22 M26,12 L26,18"
@@ -76,7 +76,7 @@
                         <TextBlock Text="Wyjście" Style="{StaticResource Label}" Margin="0,14,0,6" />
                         <ComboBox x:Name="OutputBox" Style="{StaticResource DevicePicker}" SelectionChanged="Device_Changed"
                                   AutomationProperties.Name="Wyjście przetworzonego dźwięku" />
-                        <Border Background="#272039" BorderBrush="#3D3056" BorderThickness="1" CornerRadius="8" Padding="10,9" Margin="0,10,0,0">
+                        <Border Background="#142131" BorderBrush="#2A4058" BorderThickness="1" CornerRadius="8" Padding="10,9" Margin="0,10,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -85,7 +85,7 @@
                                 <Path Data="M8,1 A7,7 0 1 1 7.99,1 M8,7 V11 M8,4.7 V4.8" Stroke="{StaticResource AccentBrush}"
                                       StrokeThickness="1.35" StrokeStartLineCap="Round" Height="16" Width="16" Stretch="Uniform"
                                       VerticalAlignment="Top" Margin="0,1,8,0" />
-                                <TextBlock x:Name="OutputHint" Grid.Column="1" Foreground="#DBCEF7" FontSize="11" TextWrapping="Wrap" />
+                                <TextBlock x:Name="OutputHint" Grid.Column="1" Foreground="#B9CDDF" FontSize="11" TextWrapping="Wrap" />
                             </Grid>
                         </Border>
                         <Border Height="1" Background="{StaticResource LineBrush}" Margin="0,17,0,13" />
