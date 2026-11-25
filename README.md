@@ -76,9 +76,15 @@ Medium Overdrive używa znormalizowanej symetrycznej krzywej wykładniczej z lin
 
 ### Swobodna edycja EQ (1.12)
 
-Kliknięcie pustego miejsca na wykresie dodaje punkt, przeciąganie zmienia zarówno częstotliwość, jak i poziom. Punkty można przesuwać przez sąsiadów; krzywa zachowuje kolejność częstotliwości. Prawy klik albo Delete usuwa punkt (pozostają co najmniej dwa). Dostępne są pola dokładnych wartości 20–20 000 Hz i ±30 dB oraz przyciski dodawania, edycji i wyboru punktu.
+Kliknięcie pustego miejsca na wykresie dodaje punkt, przeciąganie zmienia zarówno częstotliwość, jak i poziom. Punkt zatrzymuje się przed sąsiadami; zaznaczenie i kolejność punktów pozostają stałe podczas przeciągania. Prawy klik albo Delete usuwa punkt (pozostają co najmniej dwa). Dostępne są pola dokładnych wartości 20–20 000 Hz i ±30 dB oraz przyciski dodawania, edycji i wyboru punktu.
 
 Zerowanie zachowuje częstotliwości punktów. Odwracanie zmienia znak wszystkich wzmocnień. Cofnij/Ponów oraz Ctrl+Z/Y obsługują całe gesty przeciągania. Strzałki zmieniają częstotliwość i poziom, Shift zwiększa precyzję, a Page Up/Down wybierają poprzedni/następny punkt. Limit krzywej wynosi 256 punktów.
 
 Skalę częstotliwości można przełączyć między logarytmiczną i liniową, a siatkę ukryć. Przełączenie skali zmienia widok, zachowując tę samą charakterystykę dźwięku. Edycja działa na żywo i zapisuje się razem z ustawieniami aplikacji.
 
+
+
+### Presety poszczególnych filtrów (1.13)
+W każdym oknie filtra znajduje się osobna lista presetów. Wpisz nazwę i kliknij **Zapisz**, aby zachować jego aktualne parametry. Ponowne zapisanie tej samej nazwy nadpisuje preset tego filtra. Wybierz nazwę z listy i kliknij **Wczytaj**, aby zastosować parametry. **Usuń** usuwa wybrany zapis. Ta sama nazwa może istnieć niezależnie dla EQ, przesteru i innych filtrów.
+
+Preverb, reverb, echo, bramka i redukcja szumów mają analogiczne listy w rozwijanej sekcji **Presety filtra**. Wczytanie zachowuje stan włącznika i parametry pozostałych efektów. Presety są zapisywane od razu w lokalnym pliku `filter-presets.json` w katalogu ustawień aplikacji; nie trzeba zamykać programu.

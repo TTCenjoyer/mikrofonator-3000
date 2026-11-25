@@ -69,15 +69,15 @@ public sealed class EqualizerEditor : FrameworkElement
     {
         if (!double.IsFinite(hz) || !float.IsFinite(db)) return;
         var points = settings.Points.ToArray();
-        hz = Math.Clamp(hz,20,20000);
-        for (int i = 0; i < points.Length; i++)
-            if (i != selected && Math.Abs(points[i].Hertz-hz)<.02) return;
+        // Neighbors are barriers: preserve the selected node and its index for the entire drag.
+        double minimum = selected == 0 ? 20 : points[selected-1].Hertz + .01;
+        double maximum = selected == points.Length-1 ? 20000 : points[selected+1].Hertz - .01;
+        hz = Math.Clamp(hz, minimum, maximum);
         var next = new EqualizerPoint(hz, Math.Clamp(db,-30,30));
         if (next == points[selected]) return;
         if (remember) Remember();
         points[selected] = next;
-        Array.Sort(points,(a,b)=>a.Hertz.CompareTo(b.Hertz));
-        Replace(points, Array.IndexOf(points,next));
+        Replace(points, selected);
     }
 
     internal void AddPoint(double hz, float db)

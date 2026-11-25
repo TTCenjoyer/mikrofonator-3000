@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private Task? currentChange;
     private bool applyingPreset;
     private readonly Dictionary<string, Window> filterWindows = new();
+    private readonly FilterPresetStore filterPresetStore = new();
     private bool initialized, updatingDevices, busy, closing, closedAudio;
     private string? transition;
     private float shownInput, shownOutput;
@@ -115,6 +116,17 @@ public partial class MainWindow : Window
         { FilterBox.SelectedIndex = -1; PresetState.Text = "Własne ustawienia filtrów"; }
         RefreshDevices(saved.Microphone, saved.Output, saved.Monitor);
         RefreshEqControls();
+        foreach (var (key, toggle) in new (string, CheckBox)[] {
+            ("Preverb", BeforeToggle), ("Reverb", RoomToggle), ("Echo", EchoToggle),
+            ("Gate", GateToggle), ("Denoise", DenoiseToggle) })
+        {
+            if (toggle.Parent is Grid header && header.Parent is StackPanel section)
+            {
+                var presets = new Expander { Header = "Presety filtra", Content = CreateFilterPresetBar(key),
+                    Foreground = (Brush)FindResource("SecondaryBrush"), Margin = new Thickness(0,0,0,12) };
+                section.Children.Insert(1, presets);
+            }
+        }
         initialized = true;
         RefreshEffect();
         UpdateControls();
@@ -491,7 +503,7 @@ public partial class MainWindow : Window
         enabled.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsChecked") { Source = toggle, Mode = BindingMode.TwoWay });
         DockPanel.SetDock(enabled, Dock.Right); top.Children.Add(enabled);
         top.Children.Add(new TextBlock { Text = window.Title, FontSize = 19, FontWeight = FontWeights.SemiBold });
-        content.Children.Add(top); content.Children.Add(panel);
+        content.Children.Add(top); content.Children.Add(CreateFilterPresetBar(key)); content.Children.Add(panel);
         window.Content = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         window.Closed += (_, _) => { content.Children.Remove(panel); FilterPanelStorage.Children.Add(panel); filterWindows.Remove(key); };
         filterWindows.Add(key, window); window.Show();
