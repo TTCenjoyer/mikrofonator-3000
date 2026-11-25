@@ -106,3 +106,13 @@ Po niespodziewanym zatrzymaniu wejścia, wyjścia lub błędzie przetwarzania ap
 W trakcie ponawiania można kliknąć **Zatrzymaj mikrofon**. Anulowanie zapobiega także uruchomieniu sesji, której otwieranie zakończyło się już po kliknięciu Stop. Trwała awaria sprzętu może nadal uniemożliwić przesyłanie dźwięku; program pozostaje wtedy w stanie Łączenie ponownie zamiast kończyć próby.
 
 Dziennik `%LOCALAPPDATA%/FiltrMikrofonu/audio.log` zapisuje ręczny Start/Stop, zamknięcie okna, niespodziewane zatrzymanie WASAPI, pełny wyjątek przetwarzania i wyniki ponownego łączenia. Plik jest obracany po 2 MB do `.previous`. Dziennik pozostaje lokalny i nie zawiera nagrania rozmowy.
+
+
+### Cicha mowa i okresowe awarie (1.16)
+Usunięto błąd indeksowania bufora zmiany wysokości. Na ustawieniach domyślnych dało się go odtworzyć po 613 276 próbkach (12,777 s przy 48 kHz), również gdy efekt był wyłączony. Pozycja odczytu i faza korzystają teraz z podwójnej precyzji, a koniec bufora jest jawnie zawijany.
+
+Normalizer nie zeruje już podbicia poniżej amplitudy 0,008 (około −42 dBFS). Ciche sylaby zachowują wzmocnienie ograniczone suwakiem maksymalnego podbicia; dokładna cisza pozostaje ciszą. Niezależna bramka i redukcja szumów nadal działają zgodnie ze swoimi ustawieniami.
+
+Pierwszy wpis danego błędu zachowuje pełny wyjątek. Identyczne wpisy są następnie grupowane w podsumowania co najmniej 30 sekund od poprzedniego wpisu. Nowe błędy i ręczne Start/Stop pozostają rejestrowane od razu. Automatyczne ponawianie połączenia z wersji 1.15 pozostaje aktywne.
+
+Testy bez otwierania urządzeń audio: `dotnet run --project Tests/AudioRegression/AudioRegression.csproj -c Release`. Obejmują 120 sekund wyłączonego pitch, dodatnie i ujemne półtony przy różnych częstotliwościach próbkowania, zmiany ustawień na żywo, ciche sygnały oraz pełny tor DSP. Testy używają generowanego sygnału, nie mikrofonu użytkownika.

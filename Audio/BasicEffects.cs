@@ -9,7 +9,8 @@ internal sealed class BasicEffects
     private readonly int pitchWindow;
     private readonly float smooth;
     private int write;
-    private float phase, cutoff = -1, lowBlend, stages=1, compressionBlend, pitchBlend, semitones;
+    private double phase;
+    private float cutoff = -1, lowBlend, stages=1, compressionBlend, pitchBlend, semitones;
     private float envelope, gain=1, detectorAttack, detectorRelease;
     private ManualFilterSettings settings = new();
     public BasicEffects(int sampleRate, ManualFilterSettings initial)
@@ -47,18 +48,23 @@ internal sealed class BasicEffects
         input+=(input*gain-input)*compressionBlend;
         pitchBuffer[write]=input;
         semitones+=(Math.Clamp(settings.PitchSemitones,-12,12)-semitones)*smooth;
-        float second=phase+.5f;second-=MathF.Floor(second);
-        float window=.5f-.5f*MathF.Cos(MathF.Tau*phase);
+        double second=phase+.5;second-=Math.Floor(second);
+        float window=(float)(.5-.5*Math.Cos(Math.Tau*phase));
         float shifted=Read(2+phase*pitchWindow)*window+Read(2+second*pitchWindow)*(1-window);
-        phase+=(1-MathF.Pow(2,semitones/12))/pitchWindow;phase-=MathF.Floor(phase);
+        phase+=(1-Math.Pow(2,semitones/12.0))/pitchWindow;phase-=Math.Floor(phase);
         write=(write+1)%pitchBuffer.Length;
         pitchBlend+=((settings.PitchEnabled && Math.Abs(settings.PitchSemitones)>.0001f?Math.Clamp(settings.PitchMix/100,0,1):0)-pitchBlend)*smooth;
         return input+(shifted-input)*pitchBlend;
     }
-    private float Read(float delay)
+    private float Read(double delay)
     {
-        float index=write-delay;while(index<0)index+=pitchBuffer.Length;
-        int first=(int)index;float mix=index-first;
+        // Floating-point wrapping can round a tiny negative position up to Length.
+        // Use double precision and explicitly wrap that upper boundary back to zero.
+        double index=(write-delay)%pitchBuffer.Length;
+        if(index<0)index+=pitchBuffer.Length;
+        if(index>=pitchBuffer.Length)index=0;
+        int first=(int)index;
+        float mix=(float)(index-first);
         return pitchBuffer[first]+(pitchBuffer[(first+1)%pitchBuffer.Length]-pitchBuffer[first])*mix;
     }
 }

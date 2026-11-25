@@ -134,10 +134,10 @@ internal sealed class ManualFilters
     public float Normalize(float signal)
     {
         peak = Math.Max(MathF.Abs(signal), peak * peakRelease);
-        float desired = peak > .008f
-            ? Math.Min(FilterSettings.DecibelsToGain(Math.Clamp(settings.MaxGainDb, 0, 18)),
-                FilterSettings.DecibelsToGain(Math.Clamp(settings.NormalizeDb, -24, -1)) / peak)
-            : 1;
+        // A quiet syllable must retain its boost: no level gate or reset to unity.
+        // The maximum boost bounds amplification even through silence.
+        float desired = Math.Min(FilterSettings.DecibelsToGain(Math.Clamp(settings.MaxGainDb, 0, 18)),
+            FilterSettings.DecibelsToGain(Math.Clamp(settings.NormalizeDb, -24, -1)) / Math.Max(peak,1e-9f));
         normalizeGain += (desired - normalizeGain) * (desired < normalizeGain ? normalizeAttack : normalizeRelease);
         normalizeMix += ((settings.NormalizerEnabled ? 1 : 0) - normalizeMix) * smoothing;
         return signal * (1 + (normalizeGain - 1) * normalizeMix);
