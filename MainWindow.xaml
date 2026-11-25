@@ -481,9 +481,31 @@
         </Grid>
         <Grid Visibility="Collapsed" x:Name="FilterPanelStorage">
             <StackPanel x:Name="EqPanel">
-                <TextBlock Text="Przeciągnij punkty · odcinki liniowe" Style="{StaticResource Label}" FontSize="10" />
-                <ui:EqualizerEditor x:Name="EqEditor" Height="270" Margin="0,5,0,0" />
-                <Button Content="Wyzeruj EQ" Click="ResetEq_Click" HorizontalAlignment="Left" Padding="9,3" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" />
+                <TextBlock Text="Kliknij, aby dodać punkt. Przeciągaj w obu osiach. Prawy klik / Delete usuwa punkt." Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11" />
+                <ui:EqualizerEditor x:Name="EqEditor" Height="330" Margin="0,8,0,8" />
+                <WrapPanel Margin="0,0,0,12">
+                    <CheckBox x:Name="EqLinearScale" Content="Liniowa skala częstotliwości" Checked="EqView_Changed" Unchecked="EqView_Changed" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,20,0" />
+                    <CheckBox x:Name="EqGridToggle" Content="Siatka" IsChecked="True" Checked="EqView_Changed" Unchecked="EqView_Changed" Foreground="{StaticResource SecondaryBrush}" />
+                </WrapPanel>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel><TextBlock Text="Częstotliwość (Hz)" Style="{StaticResource Label}"/><TextBox x:Name="EqHzBox" Margin="0,5,0,0" Padding="8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" KeyDown="EqNumber_KeyDown" AutomationProperties.Name="Częstotliwość punktu EQ"/></StackPanel>
+                    <StackPanel Grid.Column="2"><TextBlock Text="Wzmocnienie (dB)" Style="{StaticResource Label}"/><TextBox x:Name="EqDbBox" Margin="0,5,0,0" Padding="8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}" KeyDown="EqNumber_KeyDown" AutomationProperties.Name="Wzmocnienie punktu EQ"/></StackPanel>
+                    <Button Grid.Column="4" Content="Zmień punkt" Tag="Edit" Click="EqAction_Click" VerticalAlignment="Bottom" Padding="12,8" Background="{StaticResource FieldBrush}" Foreground="{StaticResource InkBrush}" BorderBrush="{StaticResource LineBrush}"/>
+                </Grid>
+                <TextBlock x:Name="EqEditStatus" Text="20–20 000 Hz · od −30 do +30 dB" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,10"/>
+                <WrapPanel>
+                    <WrapPanel.Resources><Style TargetType="Button"><Setter Property="Background" Value="{StaticResource FieldBrush}"/><Setter Property="Foreground" Value="{StaticResource InkBrush}"/><Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/></Style></WrapPanel.Resources>
+                    <Button Content="Dodaj punkt" Tag="Add" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <Button x:Name="EqDeleteButton" Content="Usuń punkt" Tag="Delete" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <Button Content="Poprzedni" Tag="Previous" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <Button Content="Następny" Tag="Next" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <Button Content="Wyzeruj EQ" Click="ResetEq_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <Button Content="Odwróć krzywą" Tag="Invert" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <Button x:Name="EqUndoButton" Content="Cofnij" Tag="Undo" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                    <Button x:Name="EqRedoButton" Content="Ponów" Tag="Redo" Click="EqAction_Click" Padding="10,7" Margin="0,0,7,7"/>
+                </WrapPanel>
+                <TextBlock Text="Strzałki zmieniają Hz i dB; Shift zwiększa precyzję. Page Up / Down wybierają punkt. Ctrl+Z / Ctrl+Y cofa i ponawia." Style="{StaticResource Label}" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"/>
             </StackPanel>
             <StackPanel x:Name="HighPassPanel">
                 <Grid>

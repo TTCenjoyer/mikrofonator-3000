@@ -88,6 +88,7 @@ public partial class MainWindow : Window
         var manual = saved.Manual ?? new ManualFilterSettings();
         EqToggle.IsChecked = manual.EqualizerEnabled;
         EqEditor.Settings = manual.Equalizer ?? new EqualizerSettings();
+        EqEditor.SelectionChanged += (_, _) => RefreshEqControls();
         EqEditor.Changed += (_, _) => { if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs()); };
         HighPassToggle.IsChecked = manual.HighPassEnabled;
         HighPassSlider.Value = manual.HighPassHz;
@@ -113,6 +114,7 @@ public partial class MainWindow : Window
             manual.RadioColorEnabled || manual.CompressionEnabled || manual.VoiceShiftEnabled)
         { FilterBox.SelectedIndex = -1; PresetState.Text = "Własne ustawienia filtrów"; }
         RefreshDevices(saved.Microphone, saved.Output, saved.Monitor);
+        RefreshEqControls();
         initialized = true;
         RefreshEffect();
         UpdateControls();
@@ -350,8 +352,56 @@ public partial class MainWindow : Window
 
     private void ResetEq_Click(object sender, RoutedEventArgs e)
     {
-        EqEditor.Settings = new EqualizerSettings();
-        if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs());
+        EqEditor.Flatten();
+    }
+
+    private void RefreshEqControls()
+    {
+        if (EqHzBox is null) return;
+        var point = EqEditor.SelectedPoint;
+        EqHzBox.Text = point.Hertz.ToString("0.##", CultureInfo.GetCultureInfo("pl-PL"));
+        EqDbBox.Text = point.Gain.ToString("0.##", CultureInfo.GetCultureInfo("pl-PL"));
+        EqDeleteButton.IsEnabled = EqEditor.CanDelete;
+        EqUndoButton.IsEnabled = EqEditor.CanUndo;
+        EqRedoButton.IsEnabled = EqEditor.CanRedo;
+        EqEditStatus.Text = $"Punkt {EqEditor.SelectedIndex + 1} z {EqEditor.PointCount} · 20–20 000 Hz · od −30 do +30 dB";
+    }
+
+    private void EqView_Changed(object sender, RoutedEventArgs e)
+    {
+        if (EqEditor is null || EqGridToggle is null) return;
+        EqEditor.LinearScale = EqLinearScale.IsChecked == true;
+        EqEditor.ShowGrid = EqGridToggle.IsChecked == true;
+    }
+
+    private void EqNumber_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter) return;
+        EditEqPoint(false); e.Handled = true;
+    }
+
+    private void EditEqPoint(bool add)
+    {
+        if (!double.TryParse(EqHzBox.Text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var hz) ||
+            !float.TryParse(EqDbBox.Text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var db) ||
+            !double.IsFinite(hz) || !float.IsFinite(db) || hz < 20 || hz > 20000 || db < -30 || db > 30)
+        { EqEditStatus.Text = "Wpisz częstotliwość 20–20 000 Hz i poziom od −30 do +30 dB."; return; }
+        if (add) EqEditor.AddPoint(hz, db); else EqEditor.EditSelected(hz, db);
+    }
+
+    private void EqAction_Click(object sender, RoutedEventArgs e)
+    {
+        switch ((sender as Button)?.Tag as string)
+        {
+            case "Add": EditEqPoint(true); break;
+            case "Edit": EditEqPoint(false); break;
+            case "Delete": EqEditor.DeleteSelected(); break;
+            case "Invert": EqEditor.Invert(); break;
+            case "Undo": EqEditor.Undo(); break;
+            case "Redo": EqEditor.Redo(); break;
+            case "Previous": EqEditor.SelectPoint(EqEditor.SelectedIndex-1); break;
+            case "Next": EqEditor.SelectPoint(EqEditor.SelectedIndex+1); break;
+        }
     }
 
     private ManualFilterSettings GetManualSettings() => new(EqToggle.IsChecked == true, EqEditor.Settings,
@@ -423,8 +473,8 @@ public partial class MainWindow : Window
         var window = new Window
         {
             Title = button.Content.ToString()!.Replace("  ›", ""), Owner = this,
-            Width = key == "Eq" ? 640 : 430, SizeToContent = SizeToContent.Height,
-            MaxHeight = 700, MinWidth = 370, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Width = key == "Eq" ? 860 : 430, SizeToContent = SizeToContent.Height,
+            MaxHeight = 850, MinWidth = 370, WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = (Brush)FindResource("BackgroundBrush"), Foreground = (Brush)FindResource("InkBrush"),
             FontFamily = FontFamily, FontSize = 13, ResizeMode = ResizeMode.CanResize
         };
