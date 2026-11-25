@@ -35,6 +35,10 @@ public partial class MainWindow : Window
     private bool applyingPreset;
     private readonly Dictionary<string, Window> filterWindows = new();
     private readonly FilterPresetStore filterPresetStore = new();
+    private DateTimeOffset lastReconnect;
+    private int successiveRecoveries;
+    private CancellationTokenSource? recoveryCancellation;
+    private bool recovering, microphoneRequested;
     private bool initialized, updatingDevices, busy, closing, closedAudio;
     private string? transition;
     private float shownInput, shownOutput;
@@ -481,19 +485,37 @@ public partial class MainWindow : Window
 
     private async void Start_Click(object sender, RoutedEventArgs e)
     {
+        if(recovering && !closing)
+        {
+            microphoneRequested=false;
+            AudioDiagnostics.Write("User requested Stop during reconnect");
+            recoveryCancellation?.Cancel();
+            transition="Zatrzymywanie…";UpdateControls();return;
+        }
         if (busy || closing)
             return;
         SetDetail("");
         if (session is not null)
         {
+            microphoneRequested=false;
+            AudioDiagnostics.Write("User requested Stop");
             await RunAudioChange(StopAudioAsync, "Zatrzymywanie…");
         }
         else if (Microphone is { } microphone && Output is { } output && !IsCableLoop)
         {
+            microphoneRequested=true;successiveRecoveries=0;lastReconnect=default;
+            AudioDiagnostics.Write("User requested Start");
             FilterSettings parameters = GetFilterSettings();
             await RunAudioChange(async () =>
             {
-                var active = await Task.Run(() => AudioSession.Start(microphone.Id, output.Id, parameters));
+                AudioSession active;
+                try { active = await Task.Run(() => AudioSession.Start(microphone.Id, output.Id, parameters)); }
+                catch(Exception ex)
+                {
+                    AudioDiagnostics.Write("Initial start failed; reconnecting until Stop",ex);
+                    transition="Łączenie ponownie…";
+                    await RecoverAudioAsync(null);return;
+                }
                 session = active;
                 RefreshEffect();
                 if (MonitorToggle.IsChecked == true)
@@ -517,8 +539,14 @@ public partial class MainWindow : Window
         {
             await change();
         }
+        catch(OperationCanceledException) when(!microphoneRequested || closing)
+        {
+            AudioDiagnostics.Write("Audio reconnect canceled by Stop/Close");
+        }
         catch (Exception ex)
         {
+            if(session is null)microphoneRequested=false;
+            AudioDiagnostics.Write("Audio change failed",ex);
             SetDetail($"Sprawdź wybrane urządzenia i dostęp Windows do mikrofonu. {ex.Message}", true);
         }
         finally
@@ -550,8 +578,11 @@ public partial class MainWindow : Window
             return;
         if (active.Failure is { } failure)
         {
-            await RunAudioChange(StopAudioAsync, "Zatrzymywanie…");
-            SetDetail($"Przerwano dźwięk. {failure} Odśwież listę urządzeń i uruchom ponownie.", true);
+            AudioDiagnostics.Write("Audio session failure: "+failure);
+            if(microphoneRequested)
+                await RunAudioChange(()=>RecoverAudioAsync(active), "Łączenie ponownie…");
+            else
+                await RunAudioChange(StopAudioAsync,"Zatrzymywanie…");
         }
         else if (active.MonitorFailure is { } monitorError)
         {
@@ -559,6 +590,39 @@ public partial class MainWindow : Window
             await RunAudioChange(() => SetMonitorAsync(active));
             SetDetail($"Odsłuch został wyłączony. {monitorError}", true);
         }
+    }
+
+    private async Task RecoverAudioAsync(AudioSession? failed)
+    {
+        string? microphoneId=Microphone?.Id,outputId=Output?.Id;
+        if(microphoneId is null || outputId is null)throw new InvalidOperationException("Nie wybrano urządzeń audio.");
+        recovering=true;
+        using var cancellation=new CancellationTokenSource();recoveryCancellation=cancellation;
+        UpdateControls();
+        try
+        {
+            if(session==failed)session=null;
+            if(failed is not null)await Task.Run(failed.Dispose);
+            if(DateTimeOffset.UtcNow-lastReconnect>TimeSpan.FromSeconds(30))successiveRecoveries=0;
+            else successiveRecoveries=Math.Min(successiveRecoveries+1,4);
+            cancellation.Token.ThrowIfCancellationRequested();
+            var parameters=GetFilterSettings();
+            var restored=await AudioReconnect.CreateAsync(()=>AudioSession.Start(microphoneId,outputId,parameters),
+                candidate=>candidate.Dispose(),cancellation.Token,firstAttempt:successiveRecoveries);
+            if(closing || !microphoneRequested){await Task.Run(restored.Dispose);return;}
+            restored.SetFilter(GetFilterSettings());session=restored;
+            if(MonitorToggle.IsChecked==true)await SetMonitorAsync(restored);
+            if(closing || !microphoneRequested){await StopAudioAsync();return;}
+            lastReconnect=DateTimeOffset.UtcNow;
+            AudioDiagnostics.Write("Audio reconnected successfully");
+            SetDetail("Przywrócono połączenie audio po błędzie urządzenia.");
+        }
+        catch
+        {
+            if(session is not null)await StopAudioAsync();
+            throw;
+        }
+        finally{recovering=false;recoveryCancellation=null;}
     }
 
     private static void SetMeter(LevelMeter meter, System.Windows.Controls.TextBlock label, float peak)
@@ -570,14 +634,14 @@ public partial class MainWindow : Window
 
     private void UpdateControls()
     {
-        bool running = session is not null;
+        bool running = session is not null || recovering;
         bool canEditRoute = !running && !busy && !closing;
         MicrophoneBox.IsEnabled = canEditRoute && MicrophoneBox.HasItems;
         OutputBox.IsEnabled = canEditRoute && OutputBox.HasItems;
         RefreshButton.IsEnabled = canEditRoute;
         MonitorBox.IsEnabled = !busy && !closing && MonitorBox.HasItems;
         MonitorToggle.IsEnabled = !busy && !closing && Monitor is not null;
-        StartButton.IsEnabled = !busy && !closing && (running || (Microphone is not null && Output is not null && !IsCableLoop));
+        StartButton.IsEnabled = !closing && (recovering || (!busy && (running || (Microphone is not null && Output is not null && !IsCableLoop))));
 
         StatusText.Text = transition ?? (running ? "Na żywo" : Microphone is null || Output is null ? "Wybierz urządzenia" : "Gotowy");
         StatusDot.Fill = Brush(running && transition is null ? "MintBrush" : "MutedBrush");
@@ -616,6 +680,8 @@ public partial class MainWindow : Window
         if (closing)
             return;
         closing = true;
+        microphoneRequested=false;recoveryCancellation?.Cancel();
+        AudioDiagnostics.Write("Window closing");
         meterTimer.Stop();
         UpdateControls();
         Preferences.Save(new Preferences(Microphone?.Id, Output?.Id, Monitor?.Id, SelectedFilter,

@@ -47,10 +47,12 @@ internal sealed class AudioSession : IDisposable
             session.recorder.DataAvailable += session.OnCapture;
             session.recorder.RecordingStopped += session.OnCaptureStopped;
             session.recorder.StartRecording();
+            AudioDiagnostics.Write($"Audio started; sampleRate={session.SampleRate}; input={microphoneId}; output={outputId}");
             return session;
         }
-        catch
+        catch(Exception ex)
         {
+            AudioDiagnostics.Write("Audio start failed",ex);
             session.Dispose();
             throw;
         }
@@ -61,7 +63,7 @@ internal sealed class AudioSession : IDisposable
     public void SetMonitor(string? deviceId)
     {
         RenderRoute? next = deviceId is null ? null : RenderRoute.Start(deviceId, SampleRate);
-        Interlocked.Exchange(ref monitor, next)?.Dispose();
+        AudioDiagnostics.Close(Interlocked.Exchange(ref monitor,next),"previous monitor");
     }
 
     public (float In, float Out) TakePeaks() =>
@@ -69,6 +71,9 @@ internal sealed class AudioSession : IDisposable
 
     private void OnCapture(ReadOnlySpan<byte> data, AudioClientBufferFlags flags, long devicePosition, long qpcPosition)
     {
+        if(Volatile.Read(ref disposed))return;
+        try
+        {
         int frameBytes = captureFormat!.FrameBytes;
         int count = data.Length / frameBytes;
         var parameters = Volatile.Read(ref settings);
@@ -85,10 +90,22 @@ internal sealed class AudioSession : IDisposable
             output!.Buffer.Write(block, right);
             Volatile.Read(ref monitor)?.Buffer.Write(block, right);
         }
+        }
+        catch(Exception ex)
+        {
+            if(Volatile.Read(ref disposed))return;
+            if(Interlocked.CompareExchange(ref captureError,ex.ToString(),null) is null)
+                AudioDiagnostics.Write("Audio capture/processing callback failed",ex);
+        }
     }
 
-    private void OnCaptureStopped(object? sender, StoppedEventArgs args) => Volatile.Write(ref captureError,
-        args.Exception?.Message ?? "Urządzenie wejściowe przestało przesyłać dźwięk.");
+    private void OnCaptureStopped(object? sender, StoppedEventArgs args)
+    {
+        if(Volatile.Read(ref disposed))return;
+        string failure=args.Exception?.ToString()??"Urządzenie wejściowe przestało przesyłać dźwięk.";
+        Volatile.Write(ref captureError,failure);
+        AudioDiagnostics.Write("Capture stopped unexpectedly",args.Exception);
+    }
 
     private static void SetPeak(ref float target, float peak)
     {
@@ -106,16 +123,17 @@ internal sealed class AudioSession : IDisposable
     {
         if (disposed)
             return;
-        disposed = true;
+        Volatile.Write(ref disposed,true);
+        AudioDiagnostics.Write("Audio session disposing");
         if (recorder is { } capture)
         {
             capture.DataAvailable -= OnCapture;
             capture.RecordingStopped -= OnCaptureStopped;
-            capture.Dispose();
+            AudioDiagnostics.Close(capture,"capture");
         }
-        Interlocked.Exchange(ref monitor, null)?.Dispose();
-        output?.Dispose();
-        input?.Dispose();
+        AudioDiagnostics.Close(Interlocked.Exchange(ref monitor,null),"monitor");
+        AudioDiagnostics.Close(output,"output");
+        AudioDiagnostics.Close(input,"input device");
     }
 }
 
@@ -156,19 +174,22 @@ internal sealed class RenderRoute : IDisposable
         }
         catch
         {
-            player?.Dispose();
-            endpoint.Dispose();
+            AudioDiagnostics.Close(player,"failed playback start");
+            AudioDiagnostics.Close(endpoint,"failed playback device");
             throw;
         }
     }
 
-    private void OnPlaybackStopped(object? sender, StoppedEventArgs args) => Volatile.Write(ref failure,
-        args.Exception?.Message ?? "Urządzenie wyjściowe przestało odtwarzać dźwięk.");
+    private void OnPlaybackStopped(object? sender, StoppedEventArgs args)
+    {
+        Volatile.Write(ref failure,args.Exception?.ToString()??"Urządzenie wyjściowe przestało odtwarzać dźwięk.");
+        AudioDiagnostics.Write("Playback stopped unexpectedly",args.Exception);
+    }
 
     public void Dispose()
     {
         player.PlaybackStopped -= OnPlaybackStopped;
-        player.Dispose();
-        device.Dispose();
+        AudioDiagnostics.Close(player,"playback");
+        AudioDiagnostics.Close(device,"playback device");
     }
 }

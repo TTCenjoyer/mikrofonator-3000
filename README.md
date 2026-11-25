@@ -98,3 +98,11 @@ Kompresor ma próg w dB, proporcję, atak, powrót, wzmocnienie wyjścia i domie
 Wszystkie presety główne pobierają ustawienia z `VoicePresets`. Fabryczne presety w oknach filtrów korzystają z tych samych definicji i ładują tylko parametry danego efektu. Alastor zachowuje EQ, Medium Overdrive 49/50 i HP 1000 Hz / 6 dB z przesłanych zrzutów. Telefon i Megafon używają EQ, HP, LP i przesteru. Studio używa EQ, HP, kompresora i normalizatora. Anonim używa EQ, HP, LP, przesteru i zmiany wysokości −5 półtonów. Własne presety pozostają dostępne obok fabrycznych.
 
 Tor głosowy: redukcja i bramka szumów → HP → EQ → przester → LP → kompresor → zmiana wysokości → normalizator → preverb → reverb/echo. Wybór presetu ustawia wyłącznie te jawne efekty; nie uruchamia dodatkowego przetwarzania przypisanego do nazwy presetu.
+
+
+### Ponowne łączenie audio (1.15)
+Po niespodziewanym zatrzymaniu wejścia, wyjścia lub błędzie przetwarzania aplikacja ponawia połączenie z tymi samymi urządzeniami. Próby trwają do ręcznego zatrzymania albo zamknięcia aplikacji. Odstęp rośnie od 200 ms do 5 sekund; szybkie nawroty błędu również zwiększają odstęp. Nieudany pierwszy start także przechodzi do ponawiania. Parametry filtrów i wyjście odsłuchu są przywracane z bieżących ustawień.
+
+W trakcie ponawiania można kliknąć **Zatrzymaj mikrofon**. Anulowanie zapobiega także uruchomieniu sesji, której otwieranie zakończyło się już po kliknięciu Stop. Trwała awaria sprzętu może nadal uniemożliwić przesyłanie dźwięku; program pozostaje wtedy w stanie Łączenie ponownie zamiast kończyć próby.
+
+Dziennik `%LOCALAPPDATA%/FiltrMikrofonu/audio.log` zapisuje ręczny Start/Stop, zamknięcie okna, niespodziewane zatrzymanie WASAPI, pełny wyjątek przetwarzania i wyniki ponownego łączenia. Plik jest obracany po 2 MB do `.previous`. Dziennik pozostaje lokalny i nie zawiera nagrania rozmowy.
