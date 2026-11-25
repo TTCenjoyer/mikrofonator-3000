@@ -9,7 +9,9 @@ public sealed class LevelMeter : FrameworkElement
         typeof(LevelMeter), new FrameworkPropertyMetadata(Brushes.SteelBlue, FrameworkPropertyMetadataOptions.AffectsRender));
 
     private static readonly Brush Track = Freeze(Color.FromRgb(29, 38, 49));
-    private static readonly Brush Amber = Freeze(Color.FromRgb(255, 191, 123));
+    private static readonly Brush Green = Freeze(Color.FromRgb(66, 205, 143));
+    private static readonly Brush Amber = Freeze(Color.FromRgb(244, 194, 75));
+    private static readonly Brush Red = Freeze(Color.FromRgb(244, 89, 99));
     private double normalizedLevel;
 
     public Brush Accent { get => (Brush)GetValue(AccentProperty); set => SetValue(AccentProperty, value); }
@@ -36,7 +38,7 @@ public sealed class LevelMeter : FrameworkElement
         int active = (int)Math.Ceiling(normalizedLevel * segments);
         for (int i = 0; i < segments; i++)
         {
-            Brush fill = i >= active ? Track : i >= 31 ? Amber : Accent;
+            Brush fill = i >= active ? Track : i >= 32 ? Red : i >= 26 ? Amber : Green;
             drawingContext.DrawRoundedRectangle(fill, null, new Rect(i * step, 0, step - gap, ActualHeight), 2, 2);
         }
     }

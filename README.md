@@ -60,3 +60,9 @@ Dotychczasowe barwy głosu są dostępne jako **Presety**. Lewy panel **Filtry**
 - **Normalizator** — automatyczna regulacja poziomu na żywo z docelowym poziomem szczytowym i ograniczeniem maksymalnego podbicia. To adaptacja do streamingu; nie analizuje całego nagrania z wyprzedzeniem jak efekt offline.
 
 Kolejność: redukcja i bramka szumów → filtr górnoprzepustowy → EQ → przester → preset → normalizator → preverb → reverb i echo. Nowe filtry są domyślnie wyłączone i mają niezależne włączniki.
+
+
+### Układ i wspólne presety (1.10)
+Urządzenia znajdują się po lewej, presety i krótki pasek mierników pośrodku, a biblioteka filtrów po prawej. Ustawienia filtrów otwierają osobne, niemodalne okna, więc można je regulować podczas odsłuchu. Przełącznik w oknie i w bibliotece steruje tym samym filtrem. Wskaźniki przechodzą z zieleni przez żółć do czerwieni przy wysokim poziomie.
+
+Presety ustawiają dostępne filtry, bez równoległego ukrytego efektu presetu. Telefon i Megafon ustawiają EQ, filtr górnoprzepustowy i przester. Studio korzysta z korekcji, filtra górnoprzepustowego, kompresora i normalizatora. Alastor włącza filtr górnoprzepustowy i barwę radiową z próbki, a Anonim dodatkowo korzysta ze zmiany wysokości głosu. Barwa radiowa, kompresor i zmiana głosu są też dostępne osobno, z regulacją intensywności. Ręczna edycja filtrów usuwa zaznaczenie presetu i pokazuje własne ustawienia. Czysty wyłącza filtry z prawej biblioteki; osobne ustawienia szumów i przestrzeni pozostają niezależne.

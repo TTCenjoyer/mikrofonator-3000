@@ -37,6 +37,7 @@ internal sealed class AudioProcessor
     private float inputGain, outputGain, effectMix;
     private float studioEnvelope, beforeBlend, beforeMix;
     private bool beforeEnabled;
+    private float radioColorBlend, compressionBlend, voiceShiftBlend;
 
     public AudioProcessor(int sampleRate, FilterSettings initial)
     {
@@ -99,8 +100,8 @@ internal sealed class AudioProcessor
                 fadeRemaining = fadeLength;
             }
 
-            float filtered = Apply(currentFilter, dry);
-            if (fadeRemaining > 0)
+            float filtered = settings.Manual is { } shared ? ApplyShared(shared, dry) : Apply(currentFilter, dry);
+            if (settings.Manual is null && fadeRemaining > 0)
             {
                 float blend = 1 - fadeRemaining / (float)fadeLength;
                 filtered += (Apply(nextFilter, dry) - filtered) * blend;
@@ -127,6 +128,20 @@ internal sealed class AudioProcessor
                 right[i] = rightOutput;
             outputPeak = Math.Max(outputPeak, Math.Max(Math.Abs(leftOutput), Math.Abs(rightOutput)));
         }
+    }
+
+    private float ApplyShared(ManualFilterSettings shared, float dry)
+    {
+        radioColorBlend += ((shared.RadioColorEnabled ? Math.Clamp(shared.RadioColorMix / 100, 0, 1) : 0) - radioColorBlend) * parameterSmoothing;
+        compressionBlend += ((shared.CompressionEnabled ? Math.Clamp(shared.CompressionMix / 100, 0, 1) : 0) - compressionBlend) * parameterSmoothing;
+        voiceShiftBlend += ((shared.VoiceShiftEnabled ? Math.Clamp(shared.VoiceShiftMix / 100, 0, 1) : 0) - voiceShiftBlend) * parameterSmoothing;
+        float signal = dry;
+        if (radioColorBlend > .00001f) signal += (reference.ReadEffect() - signal) * radioColorBlend;
+        // Keep the stateful processors warm so enabling them never replays stale audio.
+        float compressed = Studio(signal);
+        signal += (compressed - signal) * compressionBlend;
+        float shifted = anonymous.Process(signal);
+        return signal + (shifted - signal) * voiceShiftBlend;
     }
 
     private float Apply(VoiceFilter filter, float dry)

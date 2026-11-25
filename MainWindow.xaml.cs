@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using FiltrMikrofonu.Audio;
@@ -30,6 +32,8 @@ public partial class MainWindow : Window
     private AudioDevices? devices;
     private AudioSession? session;
     private Task? currentChange;
+    private bool applyingPreset;
+    private readonly Dictionary<string, Window> filterWindows = new();
     private bool initialized, updatingDevices, busy, closing, closedAudio;
     private string? transition;
     private float shownInput, shownOutput;
@@ -84,7 +88,7 @@ public partial class MainWindow : Window
         var manual = saved.Manual ?? new ManualFilterSettings();
         EqToggle.IsChecked = manual.EqualizerEnabled;
         EqEditor.Settings = manual.Equalizer ?? new EqualizerSettings();
-        EqEditor.Changed += (_, _) => { if (initialized) RefreshEffect(); };
+        EqEditor.Changed += (_, _) => { if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs()); };
         HighPassToggle.IsChecked = manual.HighPassEnabled;
         HighPassSlider.Value = manual.HighPassHz;
         SlopeBox.SelectedIndex = manual.HighPassSlope switch { 24 => 1, 48 => 2, _ => 0 };
@@ -96,6 +100,15 @@ public partial class MainWindow : Window
         NormalizerToggle.IsChecked = manual.NormalizerEnabled;
         NormalizeSlider.Value = manual.NormalizeDb;
         MaxGainSlider.Value = manual.MaxGainDb;
+        RadioColorToggle.IsChecked = manual.RadioColorEnabled;
+        RadioColorSlider.Value = manual.RadioColorMix;
+        CompressionToggle.IsChecked = manual.CompressionEnabled;
+        CompressionSlider.Value = manual.CompressionMix;
+        VoiceShiftToggle.IsChecked = manual.VoiceShiftEnabled;
+        VoiceShiftSlider.Value = manual.VoiceShiftMix;
+        if (manual.EqualizerEnabled || manual.HighPassEnabled || manual.DistortionEnabled || manual.NormalizerEnabled ||
+            manual.RadioColorEnabled || manual.CompressionEnabled || manual.VoiceShiftEnabled)
+        { FilterBox.SelectedIndex = -1; PresetState.Text = "Własne ustawienia filtrów"; }
         RefreshDevices(saved.Microphone, saved.Output, saved.Monitor);
         initialized = true;
         RefreshEffect();
@@ -228,9 +241,29 @@ public partial class MainWindow : Window
 
     private void Effect_Changed(object sender, RoutedEventArgs e)
     {
-        if (initialized)
+        if (!initialized || applyingPreset) return;
+        if (sender == FilterBox)
+        {
+            if (FilterBox.SelectedValue is VoiceFilter preset) ApplyPreset(preset);
+        }
+        else
+        {
+            if (sender is FrameworkElement element && IsSharedFilterControl(element))
+            {
+                applyingPreset = true;
+                FilterBox.SelectedIndex = -1;
+                applyingPreset = false;
+                PresetState.Text = "Własne ustawienia filtrów";
+            }
             RefreshEffect();
+        }
     }
+
+    private bool IsSharedFilterControl(FrameworkElement control) =>
+        control == EqToggle || control == HighPassToggle || control == DistortionToggle || control == NormalizerToggle ||
+        control == RadioColorToggle || control == CompressionToggle || control == VoiceShiftToggle ||
+        new FrameworkElement[] { EqPanel, HighPassPanel, DistortionPanel, NormalizerPanel, RadioColorPanel, CompressionPanel, VoiceShiftPanel }
+            .Any(panel => panel.IsAncestorOf(control));
 
     private void Before_Changed(object sender, RoutedEventArgs e)
     {
@@ -278,6 +311,9 @@ public partial class MainWindow : Window
         DistortionOutputValue.Text = $"{DistortionOutputSlider.Value:0} dB";
         NormalizeValue.Text = $"{NormalizeSlider.Value:0} dB";
         MaxGainValue.Text = $"{MaxGainSlider.Value:0} dB";
+        RadioColorValue.Text = $"{RadioColorSlider.Value:0}%";
+        CompressionValue.Text = $"{CompressionSlider.Value:0}%";
+        VoiceShiftValue.Text = $"{VoiceShiftSlider.Value:0}%";
         session?.SetFilter(GetFilterSettings());
     }
 
@@ -307,14 +343,86 @@ public partial class MainWindow : Window
     private void ResetEq_Click(object sender, RoutedEventArgs e)
     {
         EqEditor.Settings = new EqualizerSettings();
-        if (initialized) RefreshEffect();
+        if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs());
     }
 
     private ManualFilterSettings GetManualSettings() => new(EqToggle.IsChecked == true, EqEditor.Settings,
         HighPassToggle.IsChecked == true, (float)HighPassSlider.Value, SlopeBox.SelectedIndex switch { 1 => 24, 2 => 48, _ => 12 },
         DistortionToggle.IsChecked == true, HardClippingToggle.IsChecked == true, (float)DriveSlider.Value,
         (float)DistortionMixSlider.Value, (float)DistortionOutputSlider.Value, NormalizerToggle.IsChecked == true,
-        (float)NormalizeSlider.Value, (float)MaxGainSlider.Value);
+        (float)NormalizeSlider.Value, (float)MaxGainSlider.Value,
+        RadioColorToggle.IsChecked == true, (float)RadioColorSlider.Value,
+        CompressionToggle.IsChecked == true, (float)CompressionSlider.Value,
+        VoiceShiftToggle.IsChecked == true, (float)VoiceShiftSlider.Value);
+
+    private void ApplyPreset(VoiceFilter preset)
+    {
+        applyingPreset = true;
+        try
+        {
+            EqToggle.IsChecked = preset is VoiceFilter.Studio or VoiceFilter.Radio or VoiceFilter.Megaphone or VoiceFilter.Anonymous;
+            HighPassToggle.IsChecked = preset is not VoiceFilter.Clean;
+            DistortionToggle.IsChecked = preset is VoiceFilter.Radio or VoiceFilter.Megaphone or VoiceFilter.Anonymous;
+            NormalizerToggle.IsChecked = preset == VoiceFilter.Studio;
+            RadioColorToggle.IsChecked = preset == VoiceFilter.Reference;
+            CompressionToggle.IsChecked = preset == VoiceFilter.Studio;
+            VoiceShiftToggle.IsChecked = preset == VoiceFilter.Anonymous;
+            RadioColorSlider.Value = CompressionSlider.Value = VoiceShiftSlider.Value = 100;
+            HighPassSlider.Value = preset switch { VoiceFilter.Radio => 340, VoiceFilter.Megaphone => 640, _ => 80 };
+            SlopeBox.SelectedIndex = preset == VoiceFilter.Megaphone ? 1 : 0;
+            EqEditor.Settings = preset switch
+            {
+                VoiceFilter.Studio => new(0,0,-3,-1,0,1,3,0),
+                VoiceFilter.Radio => new(-18,-12,-3,0,3,4,-10,-18),
+                VoiceFilter.Megaphone => new(-18,-18,-12,-4,1,9,-5,-18),
+                VoiceFilter.Anonymous => new(-4,2,3,0,-2,-4,-10,-18),
+                _ => new()
+            };
+            DriveSlider.Value = preset == VoiceFilter.Megaphone ? 16 : 7;
+            DistortionMixSlider.Value = preset == VoiceFilter.Anonymous ? 25 : 65;
+            DistortionOutputSlider.Value = -6;
+            HardClippingToggle.IsChecked = false;
+            NormalizeSlider.Value = -3;
+            MaxGainSlider.Value = 12;
+            PresetState.Text = $"{Filters.First(f => f.Id == preset).Title} — ustawienia filtrów zastosowane";
+        }
+        finally { applyingPreset = false; }
+        RefreshEffect();
+    }
+
+    private void OpenFilter_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string key } button) return;
+        if (filterWindows.TryGetValue(key, out var existing)) { existing.Show(); existing.Activate(); return; }
+        var panel = (FrameworkElement)FindName(key + "Panel");
+        var toggle = (CheckBox)FindName(key + "Toggle");
+        FilterPanelStorage.Children.Remove(panel);
+        var window = new Window
+        {
+            Title = button.Content.ToString()!.Replace("  ›", ""), Owner = this,
+            Width = key == "Eq" ? 640 : 430, SizeToContent = SizeToContent.Height,
+            MaxHeight = 700, MinWidth = 370, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = (Brush)FindResource("BackgroundBrush"), Foreground = (Brush)FindResource("InkBrush"),
+            FontFamily = FontFamily, FontSize = 13, ResizeMode = ResizeMode.CanResize
+        };
+        window.SourceInitialized += (_, _) =>
+        {
+            nint handle = new WindowInteropHelper(window).Handle;
+            int dark = 1, caption = 0x000D0A08;
+            DwmSetWindowAttribute(handle, 20, ref dark, sizeof(int));
+            DwmSetWindowAttribute(handle, 35, ref caption, sizeof(int));
+        };
+        var content = new StackPanel { Margin = new Thickness(24) };
+        var top = new DockPanel { Margin = new Thickness(0,0,0,20) };
+        var enabled = new CheckBox { ToolTip = "Włącz / wyłącz filtr", Style = (Style)FindResource("MonitorSwitch"), VerticalAlignment = VerticalAlignment.Center };
+        enabled.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsChecked") { Source = toggle, Mode = BindingMode.TwoWay });
+        DockPanel.SetDock(enabled, Dock.Right); top.Children.Add(enabled);
+        top.Children.Add(new TextBlock { Text = window.Title, FontSize = 19, FontWeight = FontWeights.SemiBold });
+        content.Children.Add(top); content.Children.Add(panel);
+        window.Content = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        window.Closed += (_, _) => { content.Children.Remove(panel); FilterPanelStorage.Children.Add(panel); filterWindows.Remove(key); };
+        filterWindows.Add(key, window); window.Show();
+    }
 
     private bool IsCableLoop => Microphone?.CablePair is string pair && pair == Output?.CablePair;
 

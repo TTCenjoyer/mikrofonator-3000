@@ -12,7 +12,10 @@ internal sealed record EqualizerSettings(float Band63 = 0, float Band125 = 0, fl
 internal sealed record ManualFilterSettings(bool EqualizerEnabled = false, EqualizerSettings? Equalizer = null,
     bool HighPassEnabled = false, float HighPassHz = 80, int HighPassSlope = 12,
     bool DistortionEnabled = false, bool HardClipping = false, float DriveDb = 12, float DistortionMix = 50,
-    float DistortionOutputDb = -6, bool NormalizerEnabled = false, float NormalizeDb = -3, float MaxGainDb = 12);
+    float DistortionOutputDb = -6, bool NormalizerEnabled = false, float NormalizeDb = -3, float MaxGainDb = 12,
+    bool RadioColorEnabled = false, float RadioColorMix = 100,
+    bool CompressionEnabled = false, float CompressionMix = 100,
+    bool VoiceShiftEnabled = false, float VoiceShiftMix = 100);
 
 internal sealed class ManualFilters
 {
