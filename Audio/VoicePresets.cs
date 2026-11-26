@@ -19,7 +19,7 @@ internal static class VoicePresets
         HighPassSlope:preset==VoiceFilter.Megaphone?24:12,
         DistortionEnabled:preset!=VoiceFilter.Studio,DriveDb:preset==VoiceFilter.Megaphone?16:7,
         DistortionMix:preset==VoiceFilter.Anonymous?25:65,DistortionOutputDb:-6,
-        NormalizerEnabled:preset==VoiceFilter.Studio,CompressionEnabled:preset==VoiceFilter.Studio,
+        NormalizerEnabled:preset==VoiceFilter.Studio,NormalizeDb:preset==VoiceFilter.Studio?-10:-3,CompressionEnabled:preset==VoiceFilter.Studio,
         LowPassEnabled:preset!=VoiceFilter.Studio,LowPassHz:preset switch{VoiceFilter.Radio=>3150,VoiceFilter.Megaphone=>4050,_=>3200},
         PitchEnabled:preset==VoiceFilter.Anonymous,PitchSemitones:-5,
         CompressorThreshold:-18,CompressorRatio:3,CompressorAttack:10,CompressorRelease:120,CompressorMakeup:3);
