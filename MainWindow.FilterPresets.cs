@@ -128,7 +128,9 @@ public partial class MainWindow
                 case "Gate" when saved.Noise is { } gate:
                     GateThresholdSlider.Value = gate.GateThreshold; GateHoldSlider.Value = gate.GateHold; GateReleaseSlider.Value = gate.GateRelease; break;
                 case "Denoise" when saved.Noise is { } noise:
-                    NoiseFloorSlider.Value = noise.NoiseFloor; NoiseReductionSlider.Value = noise.Reduction; break;
+                    NoiseFloorSlider.Value = noise.NoiseFloor; NoiseReductionSlider.Value = noise.Reduction;
+                    NoiseModeBox.SelectedIndex=noise.NeuralEnabled?0:1;NeuralStrengthSlider.Value=noise.NeuralStrength;
+                    AutomaticVoiceGateToggle.IsChecked=noise.AutomaticVoiceGate;break;
                 default: throw new ArgumentException("Preset nie zawiera ustawień tego filtra.");
             }
             if (saved.Manual is not null)

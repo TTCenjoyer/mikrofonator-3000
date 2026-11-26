@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private bool initialized, updatingDevices, busy, closing, closedAudio;
     private string? transition;
     private float shownInput, shownOutput;
+    private string? preferredEchoReference, reportedEchoFailure, reportedNeuralFailure;
 
     public MainWindow()
     {
@@ -88,6 +89,12 @@ public partial class MainWindow : Window
         DenoiseToggle.IsChecked = noise.DenoiseEnabled;
         NoiseFloorSlider.Value = noise.NoiseFloor;
         NoiseReductionSlider.Value = noise.Reduction;
+        NoiseModeBox.SelectedIndex=noise.NeuralEnabled?0:1;
+        NeuralStrengthSlider.Value=noise.NeuralStrength;
+        AutomaticVoiceGateToggle.IsChecked=noise.AutomaticVoiceGate;
+        AecToggle.IsChecked=noise.EchoCancellationEnabled;
+        AecDelaySlider.Value=noise.EchoDelayMs;
+        preferredEchoReference=noise.EchoReferenceDevice;
         EchoMixSlider.Value = Math.Clamp(saved.EchoMix, 0, 100);
         EchoTimeSlider.Value = saved.EchoMilliseconds;
         var manual = saved.Manual ?? new ManualFilterSettings();
@@ -157,6 +164,10 @@ public partial class MainWindow : Window
                 devices.Outputs.FirstOrDefault(device => device.CablePair == "CABLE") ??
                 devices.Outputs.FirstOrDefault(device => device.CablePair is not null);
             RefreshMonitorList(monitorId);
+            var echoDevices=devices.Outputs.Where(device=>device.CablePair is null).ToArray();
+            string? selectedEcho=(EchoReferenceBox.SelectedItem as AudioDevice)?.Id??preferredEchoReference;
+            EchoReferenceBox.ItemsSource=echoDevices;
+            EchoReferenceBox.SelectedItem=Find(echoDevices,selectedEcho)??Find(echoDevices,Monitor?.Id)??Find(echoDevices,devices.DefaultOutput)??echoDevices.FirstOrDefault();
         }
         catch (Exception ex)
         {
@@ -324,6 +335,10 @@ public partial class MainWindow : Window
         MediumOverdrivePanel.Visibility = medium ? Visibility.Visible : Visibility.Collapsed;
         OverdriveAmountValue.Text = $"{OverdriveAmountSlider.Value:0}";
         OverdriveOutputValue.Text = $"{OverdriveOutputSlider.Value:0}";
+        NeuralStrengthValue.Text=$"{NeuralStrengthSlider.Value:0}%";
+        AecDelayValue.Text=$"{AecDelaySlider.Value:0} ms";
+        NeuralControls.Visibility=NoiseModeBox.SelectedIndex==0?Visibility.Visible:Visibility.Collapsed;
+        LegacyNoiseControls.Visibility=NoiseModeBox.SelectedIndex==0?Visibility.Collapsed:Visibility.Visible;
         session?.SetFilter(GetFilterSettings());
     }
 
@@ -348,7 +363,9 @@ public partial class MainWindow : Window
 
     private NoiseSettings GetNoiseSettings() => new(GateToggle.IsChecked == true,
         (float)GateThresholdSlider.Value, (int)GateHoldSlider.Value, (int)GateReleaseSlider.Value,
-        DenoiseToggle.IsChecked == true, (float)NoiseFloorSlider.Value, (float)NoiseReductionSlider.Value);
+        DenoiseToggle.IsChecked == true, (float)NoiseFloorSlider.Value, (float)NoiseReductionSlider.Value,
+        NoiseModeBox.SelectedIndex==0,(float)NeuralStrengthSlider.Value,AutomaticVoiceGateToggle.IsChecked==true,
+        AecToggle.IsChecked==true,(EchoReferenceBox.SelectedItem as AudioDevice)?.Id,(int)AecDelaySlider.Value);
 
     private void ResetEq_Click(object sender, RoutedEventArgs e)
     {
@@ -481,6 +498,44 @@ public partial class MainWindow : Window
         filterWindows.Add(key, window); window.Show();
     }
 
+    private async void Aec_Changed(object sender,RoutedEventArgs e)
+    {
+        if(!initialized || updatingDevices || closing || applyingPreset)return;
+        preferredEchoReference=(EchoReferenceBox.SelectedItem as AudioDevice)?.Id;
+        RefreshEffect();
+        if(!busy && session is { } active)await RunAudioChange(()=>ConfigureEchoReferenceAsync(active));
+    }
+    private async Task ConfigureEchoReferenceAsync(AudioSession active)
+    {
+        string? device=AecToggle.IsChecked==true?(EchoReferenceBox.SelectedItem as AudioDevice)?.Id:null;
+        if(device==Output?.Id)device=null;
+        try{await Task.Run(()=>active.SetEchoReference(device));}
+        catch(Exception ex)
+        {
+            await Task.Run(()=>active.SetEchoReference(null));
+            SetDetail("Nie udało się odczytać słuchawek do AEC. "+ex.Message,true);
+        }
+    }
+    private async void DiscordNoisePreset_Click(object sender,RoutedEventArgs e)
+    {
+        if(busy || closing)return;
+        applyingPreset=true;
+        try
+        {
+            DenoiseToggle.IsChecked=true;NoiseModeBox.SelectedIndex=0;NeuralStrengthSlider.Value=100;
+            AutomaticVoiceGateToggle.IsChecked=true;GateToggle.IsChecked=false;AecToggle.IsChecked=true;
+            AecDelaySlider.Value=0;
+            var discordHeadphones=devices?.Outputs.FirstOrDefault(device=>device.CablePair is null && device.Name.Contains("MAONO AU-AM200",StringComparison.OrdinalIgnoreCase));
+            if(discordHeadphones is not null)EchoReferenceBox.SelectedItem=discordHeadphones;
+            NormalizerToggle.IsChecked=true;NormalizeSlider.Value=-9;MaxGainSlider.Value=12;
+            FilterBox.SelectedIndex=-1;PresetState.Text="Własne ustawienia filtrów";
+        }
+        finally{applyingPreset=false;}
+        RefreshEffect();
+        if(session is { } active)await RunAudioChange(()=>ConfigureEchoReferenceAsync(active));
+        SetDetail("Profil inspirowany Discordem ustawiony. W Discordzie wybierz CABLE Output jako mikrofon.");
+    }
+
     private bool IsCableLoop => Microphone?.CablePair is string pair && pair == Output?.CablePair;
 
     private async void Start_Click(object sender, RoutedEventArgs e)
@@ -590,6 +645,10 @@ public partial class MainWindow : Window
             await RunAudioChange(() => SetMonitorAsync(active));
             SetDetail($"Odsłuch został wyłączony. {monitorError}", true);
         }
+        if(active.EchoFailure is { } echoFailure && reportedEchoFailure!=echoFailure)
+        {reportedEchoFailure=echoFailure;SetDetail("Eliminacja echa jest niedostępna: "+echoFailure,true);}
+        if(active.NeuralFailure is { } neuralFailure && reportedNeuralFailure!=neuralFailure)
+        {reportedNeuralFailure=neuralFailure;SetDetail("Redukcja AI jest niedostępna; działa tryb klasyczny. "+neuralFailure,true);}
     }
 
     private async Task RecoverAudioAsync(AudioSession? failed)
@@ -639,6 +698,8 @@ public partial class MainWindow : Window
         MicrophoneBox.IsEnabled = canEditRoute && MicrophoneBox.HasItems;
         OutputBox.IsEnabled = canEditRoute && OutputBox.HasItems;
         RefreshButton.IsEnabled = canEditRoute;
+        EchoReferenceBox.IsEnabled=!busy && !closing && EchoReferenceBox.HasItems;
+        AecToggle.IsEnabled=!busy && !closing;
         MonitorBox.IsEnabled = !busy && !closing && MonitorBox.HasItems;
         MonitorToggle.IsEnabled = !busy && !closing && Monitor is not null;
         StartButton.IsEnabled = !closing && (recovering || (!busy && (running || (Microphone is not null && Output is not null && !IsCableLoop))));

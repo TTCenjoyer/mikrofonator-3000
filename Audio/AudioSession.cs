@@ -13,6 +13,12 @@ internal sealed class AudioSession : IDisposable
     private RenderRoute? monitor;
     private SampleFormat? captureFormat;
     private AudioProcessor? processor;
+    private EchoCancellationProcessor? echoCanceller;
+    private PlaybackReferenceCapture? echoReference;
+    private string? echoReferenceError;
+    private readonly object referenceMutex=new();
+    public string? EchoFailure=>Volatile.Read(ref echoReferenceError)??Volatile.Read(ref echoReference)?.Failure??echoCanceller?.Failure;
+    public string? NeuralFailure=>processor?.NeuralFailure;
     private FilterSettings settings;
     private string? captureError;
     private float inputPeak, outputPeak;
@@ -32,18 +38,25 @@ internal sealed class AudioSession : IDisposable
             using var devices = new MMDeviceEnumerator();
             session.input = devices.GetDevice(microphoneId);
             var builder = new WasapiRecorderBuilder().WithDevice(session.input)
-                .WithBufferLength(24).WithLowLatency().WithMmcssThreadPriority("Pro Audio");
+                .WithBufferLength(24).WithMmcssThreadPriority("Pro Audio");
             WaveFormat mix;
             using (var client = session.input.CreateAudioClient())
                 mix = client.MixFormat;
-            if (mix.SampleRate > 48000)
+            if (mix.SampleRate != 48000)
                 builder.WithFormat(WaveFormat.CreateIeeeFloatWaveFormat(48000, mix.Channels));
+            else builder.WithLowLatency();
 
             session.recorder = builder.Build();
             session.SampleRate = session.recorder.WaveFormat.SampleRate;
             session.captureFormat = new SampleFormat(session.recorder.WaveFormat);
             session.processor = new AudioProcessor(session.SampleRate, settings);
             session.output = RenderRoute.Start(outputId, session.SampleRate);
+            session.echoCanceller=new EchoCancellationProcessor(session.SampleRate);
+            if(settings.Noise is {EchoCancellationEnabled:true,EchoReferenceDevice: {} referenceId} && referenceId!=outputId)
+            {
+                try{session.SetEchoReference(referenceId);}
+                catch(Exception ex){AudioDiagnostics.Write("Echo reference unavailable; microphone continues without AEC",ex);}
+            }
             session.recorder.DataAvailable += session.OnCapture;
             session.recorder.RecordingStopped += session.OnCaptureStopped;
             session.recorder.StartRecording();
@@ -55,6 +68,19 @@ internal sealed class AudioSession : IDisposable
             AudioDiagnostics.Write("Audio start failed",ex);
             session.Dispose();
             throw;
+        }
+    }
+
+    public void SetEchoReference(string? deviceId)
+    {
+        lock(referenceMutex)
+        {
+            if(disposed)return;
+            if(Volatile.Read(ref echoReference) is { } existing && existing.DeviceId==deviceId && existing.Failure is null)return;
+            PlaybackReferenceCapture? next;
+            try{next=deviceId is null?null:new PlaybackReferenceCapture(deviceId);Volatile.Write(ref echoReferenceError,null);}
+            catch(Exception ex){Volatile.Write(ref echoReferenceError,ex.Message);throw;}
+            AudioDiagnostics.Close(Interlocked.Exchange(ref echoReference,next),"previous echo reference");
         }
     }
 
@@ -81,8 +107,10 @@ internal sealed class AudioSession : IDisposable
         {
             var block = scratch.AsSpan(0, Math.Min(scratch.Length, count - offset));
             for (int frame = 0; frame < block.Length; frame++)
-                block[frame] = captureFormat.ReadMono(data[((offset + frame) * frameBytes)..]);
+                block[frame] = (flags&AudioClientBufferFlags.Silent)!=0?0:captureFormat.ReadMono(data[((offset + frame) * frameBytes)..]);
 
+            if(echoCanceller is not null)
+                echoCanceller.Process(block,qpcPosition+(long)(offset*10000000.0/SampleRate),parameters.Noise??new(),Volatile.Read(ref echoReference)?.Buffer);
             var right = rightScratch.AsSpan(0, block.Length);
             processor!.ProcessStereo(block, right, parameters, out float before, out float after);
             SetPeak(ref inputPeak, before);
@@ -132,6 +160,9 @@ internal sealed class AudioSession : IDisposable
             AudioDiagnostics.Close(capture,"capture");
         }
         AudioDiagnostics.Close(Interlocked.Exchange(ref monitor,null),"monitor");
+        lock(referenceMutex)AudioDiagnostics.Close(Interlocked.Exchange(ref echoReference,null),"echo reference");
+        AudioDiagnostics.Close(echoCanceller,"echo canceller");
+        AudioDiagnostics.Close(processor,"audio processor");
         AudioDiagnostics.Close(output,"output");
         AudioDiagnostics.Close(input,"input device");
     }

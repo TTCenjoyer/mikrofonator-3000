@@ -19,7 +19,7 @@ internal sealed record FilterSettings(VoiceFilter Filter, float Mix, float Input
     public static float DecibelsToGain(double decibels) => MathF.Pow(10, (float)(decibels / 20));
 }
 
-internal sealed class AudioProcessor
+internal sealed class AudioProcessor : IDisposable
 {
     private readonly BeforeVoiceEcho beforeVoice;
     private readonly VoiceAmbience ambience;
@@ -88,6 +88,9 @@ internal sealed class AudioProcessor
             outputPeak = Math.Max(outputPeak, Math.Max(Math.Abs(leftOutput), Math.Abs(rightOutput)));
         }
     }
+
+    internal string? NeuralFailure=>noise.NeuralFailure;
+    public void Dispose()=>noise.Dispose();
 
     private static float Limit(float value)
     {
