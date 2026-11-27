@@ -8,7 +8,7 @@ internal static class VoicePresets
     public static ManualFilterSettings Settings(VoiceFilter preset)
     {
         if(preset==VoiceFilter.Reference)return AlastorPreset.Settings;
-        if(preset is VoiceFilter.Clean or VoiceFilter.BeforeVoice)return new();
+        if(preset is VoiceFilter.Clean or VoiceFilter.BeforeVoice or VoiceFilter.NormalUsage)return new();
         return new(EqualizerEnabled:true,Equalizer:preset switch
         {
             VoiceFilter.Studio=>new(0,0,-3,-1,0,1,3,0),

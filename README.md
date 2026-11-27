@@ -130,3 +130,11 @@ Aplikacja używa otwartych silników [RNNoise](https://github.com/xiph/rnnoise) 
 Zależności natywne są dołączane do wydania (bez pobierania w trakcie rozmowy): YellowDogMan.RRNoise.NET 0.1.9 i SpeexDSPSharp 1.3.0. Licencje są w `ThirdPartyNotices.txt`.
 
 Testy syntetyczne: profil RNNoise + automatyczna czułość około −27 dB dla szumu szerokopasmowego; AEC około −30 do −42 dB dla opóźnionego przesłuchu, z zachowaniem niezależnego sygnału bliskiej mowy. To wyniki testowe, a nie pomiary słuchawek użytkownika. Sprawdzono także pakowanie natywnych bibliotek w pojedynczym EXE i odczyt samego wyjścia MAONO bez otwierania mikrofonu. Zwykły zestaw testów nie otwiera urządzeń; osobny, jawny test odczytu wyjścia: `dotnet run --project Tests/AudioRegression/AudioRegression.csproj -c Release -r win-x64 -- --reference-smoke`.
+
+
+### Domyślny preset Normal usage (1.18)
+Preset **Normal usage** zachowuje pełny zestaw efektów, ich przełączniki, szumy, poziomy wejścia/wyjścia, preverb, reverb i echo. Po zapisaniu jest wybierany przy każdym uruchomieniu aplikacji, także jeśli przed zamknięciem używano innego presetu. Przycisk **Zapisz bieżące jako Normal usage** jawnie aktualizuje ten zestaw. Zwykła regulacja suwaków nie nadpisuje presetu.
+
+Profil jest prywatnym plikiem `%LOCALAPPDATA%/FiltrMikrofonu/normal-usage.json`; konkretne ustawienia i identyfikatory urządzeń nie są dołączane do repozytorium. Wybór mikrofonu, głównego wyjścia i odsłuchu podczas uruchamiania pochodzi z ostatnich ustawień urządzeń. Wczytanie presetu w czasie pracy zmienia efekty; nie przełącza fizycznego mikrofonu ani głównego wyjścia. Sam wybór domyślnego presetu nie uruchamia transmisji mikrofonu.
+
+Dodatkowo zapis ustawień aplikacji zachowuje teraz przełączniki preverb i odsłuchu. Test trwałości profilu: `dotnet run --project Tests/PresetRegression/PresetRegression.csproj -c Release`.

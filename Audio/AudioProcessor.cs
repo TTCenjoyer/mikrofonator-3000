@@ -4,7 +4,7 @@ namespace FiltrMikrofonu.Audio;
 
 internal enum VoiceFilter
 {
-    Reference, Clean, Studio, Radio, Megaphone, BeforeVoice, Anonymous
+    Reference, Clean, Studio, Radio, Megaphone, BeforeVoice, Anonymous, NormalUsage
 }
 
 internal sealed record FilterSettings(VoiceFilter Filter, float Mix, float InputGain, float OutputGain,

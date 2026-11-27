@@ -8,7 +8,7 @@ internal sealed record Preferences(string? Microphone = null, string? Output = n
     VoiceFilter Filter = VoiceFilter.Clean, double Mix = 100, double InputDb = 0, double OutputDb = 0,
     double? BeforeMix = null, int BeforeMilliseconds = BeforeVoiceEcho.DefaultMilliseconds,
     bool RoomEnabled = false, double RoomMix = 35, int RoomMilliseconds = VoiceAmbience.DefaultRoomMilliseconds,
-    bool EchoEnabled = false, double EchoMix = 30, int EchoMilliseconds = VoiceAmbience.DefaultEchoMilliseconds, ReverbSettings? Reverb = null, ReverbSettings? Preverb = null, int DefaultsRevision = 0, NoiseSettings? Noise = null, ManualFilterSettings? Manual = null)
+    bool EchoEnabled = false, double EchoMix = 30, int EchoMilliseconds = VoiceAmbience.DefaultEchoMilliseconds, ReverbSettings? Reverb = null, ReverbSettings? Preverb = null, int DefaultsRevision = 0, NoiseSettings? Noise = null, ManualFilterSettings? Manual = null, bool BeforeEnabled = false, bool MonitorEnabled = false)
 {
     private static string DirectoryPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FiltrMikrofonu");
     private static string FilePath => Path.Combine(DirectoryPath, "settings.json");

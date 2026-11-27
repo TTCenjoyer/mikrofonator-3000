@@ -17,6 +17,7 @@ public partial class MainWindow : Window
 
     private static readonly FilterCard[] Filters =
     [
+        new(VoiceFilter.NormalUsage, "Normal usage", "Twój domyślny zestaw", Geometry.Parse("M2,2 H18 V18 H2 Z M5,7 H15 M5,12 H12")),
         new(VoiceFilter.Reference, "Alastor", "Radiowy przester", Geometry.Parse("M1,9 L4,9 7,3 10,15 13,6 16,11 19,9")),
         new(VoiceFilter.Clean, "Czysty", "Bez efektu", Geometry.Parse("M1,9 H18")),
         new(VoiceFilter.Studio, "Studio", "Barwa i kompresja", Geometry.Parse("M1,4 H18 M1,10 H18 M1,16 H18 M6,1 V7 M13,7 V13 M8,13 V19")),
@@ -35,6 +36,8 @@ public partial class MainWindow : Window
     private bool applyingPreset;
     private readonly Dictionary<string, Window> filterWindows = new();
     private readonly FilterPresetStore filterPresetStore = new();
+    private readonly NormalUsagePresetStore normalUsageStore=new();
+    private Preferences? normalUsage;
     private DateTimeOffset lastReconnect;
     private int successiveRecoveries;
     private CancellationTokenSource? recoveryCancellation;
@@ -50,9 +53,42 @@ public partial class MainWindow : Window
         meterTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(33) };
         meterTimer.Tick += UpdateMeters;
 
-        var saved = Preferences.Load();
+        var current=Preferences.Load();
+        try{normalUsage=normalUsageStore.Load();}
+        catch(Exception ex) when(ex is System.IO.IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {SetDetail("Nie udało się wczytać presetu Normal usage. "+ex.Message,true);}
+        var saved=normalUsage??current;
         FilterBox.ItemsSource = Filters;
-        FilterBox.SelectedValue = VoiceFilter.Clean;
+        FilterBox.SelectedValue = normalUsage is null?VoiceFilter.Clean:VoiceFilter.NormalUsage;
+        LoadEffectSettings(saved);
+        MonitorToggle.IsChecked=current.MonitorEnabled;
+        var manual=saved.Manual??new ManualFilterSettings();
+        EqEditor.SelectionChanged += (_, _) => RefreshEqControls();
+        EqEditor.Changed += (_, _) => { if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs()); };
+        if (normalUsage is null && new[] { "Eq", "HighPass", "LowPass", "Distortion", "Normalizer", "Compression", "Pitch" }.Any(key=>VoicePresets.Uses(key,manual)))
+        { FilterBox.SelectedIndex = -1; PresetState.Text = "Własne ustawienia filtrów"; }
+        if(normalUsage is not null)PresetState.Text="Normal usage — domyślny preset";
+        RefreshDevices(current.Microphone, current.Output, current.Monitor);
+        RefreshEqControls();
+        foreach (var (key, toggle) in new (string, CheckBox)[] {
+            ("Preverb", BeforeToggle), ("Reverb", RoomToggle), ("Echo", EchoToggle),
+            ("Gate", GateToggle), ("Denoise", DenoiseToggle) })
+        {
+            if (toggle.Parent is Grid header && header.Parent is StackPanel section)
+            {
+                var presets = new Expander { Header = "Presety filtra", Content = CreateFilterPresetBar(key),
+                    Foreground = (Brush)FindResource("SecondaryBrush"), Margin = new Thickness(0,0,0,12) };
+                section.Children.Insert(1, presets);
+            }
+        }
+        initialized = true;
+        RefreshEffect();
+        UpdateControls();
+        meterTimer.Start();
+    }
+
+    private void LoadEffectSettings(Preferences saved)
+    {
         MixSlider.Value = Math.Clamp(saved.Mix, MixSlider.Minimum, MixSlider.Maximum);
         InputSlider.Value = Math.Clamp(saved.InputDb, InputSlider.Minimum, InputSlider.Maximum);
         OutputSlider.Value = Math.Clamp(saved.OutputDb, OutputSlider.Minimum, OutputSlider.Maximum);
@@ -95,31 +131,14 @@ public partial class MainWindow : Window
         AecToggle.IsChecked=noise.EchoCancellationEnabled;
         AecDelaySlider.Value=noise.EchoDelayMs;
         preferredEchoReference=noise.EchoReferenceDevice;
+        if(devices is not null && noise.EchoReferenceDevice is { } echoId)
+            EchoReferenceBox.SelectedItem=Find(devices.Outputs,echoId)??EchoReferenceBox.SelectedItem;
         EchoMixSlider.Value = Math.Clamp(saved.EchoMix, 0, 100);
         EchoTimeSlider.Value = saved.EchoMilliseconds;
         var manual = saved.Manual ?? new ManualFilterSettings();
         SetManualControls(manual);
-        EqEditor.SelectionChanged += (_, _) => RefreshEqControls();
-        EqEditor.Changed += (_, _) => { if (initialized) Effect_Changed(EqToggle, new RoutedEventArgs()); };
-        if (new[] { "Eq", "HighPass", "LowPass", "Distortion", "Normalizer", "Compression", "Pitch" }.Any(key=>VoicePresets.Uses(key,manual)))
-        { FilterBox.SelectedIndex = -1; PresetState.Text = "Własne ustawienia filtrów"; }
-        RefreshDevices(saved.Microphone, saved.Output, saved.Monitor);
-        RefreshEqControls();
-        foreach (var (key, toggle) in new (string, CheckBox)[] {
-            ("Preverb", BeforeToggle), ("Reverb", RoomToggle), ("Echo", EchoToggle),
-            ("Gate", GateToggle), ("Denoise", DenoiseToggle) })
-        {
-            if (toggle.Parent is Grid header && header.Parent is StackPanel section)
-            {
-                var presets = new Expander { Header = "Presety filtra", Content = CreateFilterPresetBar(key),
-                    Foreground = (Brush)FindResource("SecondaryBrush"), Margin = new Thickness(0,0,0,12) };
-                section.Children.Insert(1, presets);
-            }
-        }
-        initialized = true;
-        RefreshEffect();
-        UpdateControls();
-        meterTimer.Start();
+        BeforeToggle.IsChecked=saved.BeforeEnabled || saved.Filter==VoiceFilter.BeforeVoice;
+        EchoToggle.IsChecked=saved.EchoEnabled;
     }
 
     private AudioDevice? Microphone => MicrophoneBox.SelectedItem as AudioDevice;
@@ -277,7 +296,7 @@ public partial class MainWindow : Window
 
     private void Before_Changed(object sender, RoutedEventArgs e)
     {
-        if (!initialized)
+        if (!initialized || applyingPreset)
             return;
         RefreshEffect();
     }
@@ -454,6 +473,20 @@ public partial class MainWindow : Window
 
     private void ApplyPreset(VoiceFilter preset)
     {
+        if(preset==VoiceFilter.NormalUsage)
+        {
+            if(normalUsage is null)
+            {
+                applyingPreset=true;FilterBox.SelectedIndex=-1;applyingPreset=false;
+                SetDetail("Najpierw zapisz bieżące ustawienia jako Normal usage.",true);return;
+            }
+            applyingPreset=true;
+            try{LoadEffectSettings(normalUsage);PresetState.Text="Normal usage — zapisany zestaw ustawień";}
+            finally{applyingPreset=false;}
+            RefreshEffect();
+            if(!busy && session is { } active)_=RunAudioChange(()=>ConfigureEchoReferenceAsync(active));
+            return;
+        }
         applyingPreset=true;
         try
         {
@@ -732,6 +765,29 @@ public partial class MainWindow : Window
 
     private Brush Brush(string key) => (Brush)FindResource(key);
 
+    private Preferences CapturePreferences()
+    {
+        return new Preferences(Microphone?.Id, Output?.Id, Monitor?.Id, SelectedFilter,
+            MixSlider.Value, InputSlider.Value, OutputSlider.Value,
+            BeforeMixSlider.Value, (int)BeforeTimeSlider.Value,
+            RoomToggle.IsChecked == true, 100, VoiceAmbience.DefaultRoomMilliseconds,
+            EchoToggle.IsChecked == true, EchoMixSlider.Value, (int)EchoTimeSlider.Value, GetReverbSettings(), GetPreverbSettings(), 1, GetNoiseSettings(), GetManualSettings(), BeforeEnabled:BeforeToggle.IsChecked==true, MonitorEnabled:MonitorToggle.IsChecked==true);
+    }
+
+    private void SaveNormalUsage_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var snapshot=CapturePreferences();normalUsageStore.Save(snapshot);normalUsage=normalUsageStore.Load();
+            applyingPreset=true;
+            try{FilterBox.SelectedValue=VoiceFilter.NormalUsage;PresetState.Text="Normal usage — domyślny preset";}
+            finally{applyingPreset=false;}
+            SetDetail("Zapisano Normal usage. Ten zestaw będzie wczytywany przy uruchamianiu aplikacji.");
+        }
+        catch(Exception ex) when(ex is System.IO.IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {SetDetail("Nie udało się zapisać Normal usage. "+ex.Message,true);}
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
@@ -745,11 +801,7 @@ public partial class MainWindow : Window
         AudioDiagnostics.Write("Window closing");
         meterTimer.Stop();
         UpdateControls();
-        Preferences.Save(new Preferences(Microphone?.Id, Output?.Id, Monitor?.Id, SelectedFilter,
-            MixSlider.Value, InputSlider.Value, OutputSlider.Value,
-            BeforeMixSlider.Value, (int)BeforeTimeSlider.Value,
-            RoomToggle.IsChecked == true, 100, VoiceAmbience.DefaultRoomMilliseconds,
-            EchoToggle.IsChecked == true, EchoMixSlider.Value, (int)EchoTimeSlider.Value, GetReverbSettings(), GetPreverbSettings(), 1, GetNoiseSettings(), GetManualSettings()));
+        Preferences.Save(CapturePreferences());
         _ = FinishCloseAsync();
     }
 

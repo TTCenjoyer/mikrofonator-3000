@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationIcon>Microphone.ico</ApplicationIcon>
-    <Version>1.17.1</Version>
+    <Version>1.18.0</Version>
     <Product>Filtr Mikrofonu</Product>
     <Description>Filtry gĹ‚osowe na ĹĽywo dla Windows</Description>
   </PropertyGroup>
